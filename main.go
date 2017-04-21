@@ -64,7 +64,11 @@ func main() {
 
 		}
 
-		reverse.ServeHTTP(w, r)
+		if err := reverse.Proxy(w, r); err != nil {
+			log.Print(err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
 	})
 
 	srv := http.Server{Addr: conf.Address, Handler: mux}

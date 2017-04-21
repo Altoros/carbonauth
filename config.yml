@@ -5,6 +5,7 @@ address: :8082
 # list of carbonapi addresses
 backends:
 - http://localhost:8081
+- http://localhost:8089
 
 # admin credentials for users management
 auth:

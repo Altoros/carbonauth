@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestProxy_ServeHTTP(t *testing.T) {
+func TestProxy_Proxy(t *testing.T) {
 	t.Parallel()
 
 	b1 := newBackend("one")
@@ -23,13 +23,36 @@ func TestProxy_ServeHTTP(t *testing.T) {
 	res := map[string]int{}
 	for i := 0; i < 10; i++ {
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		p.ServeHTTP(w, r)
+		r := httptest.NewRequest(http.MethodGet, "/asd", nil)
+		if err := p.Proxy(w, r); err != nil {
+			t.Fatal(err)
+		}
 		res[w.Body.String()] = res[w.Body.String()] + 1
 	}
 
 	if res["one"] == 0 || res["two"] == 0 {
 		t.Errorf("proxied to only one backend: one = %d, two = %d", res["one"], res["two"])
+	}
+
+	// stop first backend
+	b1.Close()
+	for i := 0; i < 10; i++ {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/asd", nil)
+		if err := p.Proxy(w, r); err != nil {
+			t.Fatal(err)
+		}
+
+		if w.Body.String() == "one" {
+			t.Error("first backend expected to be down but it's not")
+		}
+	}
+
+	b2.Close()
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/asd", nil)
+	if err = p.Proxy(w, r); err != ErrNoBackends {
+		t.Errorf("err = %v, want ErrNoBackends", err)
 	}
 }
 
