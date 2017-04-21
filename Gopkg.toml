@@ -1,0 +1,12 @@
+
+[[dependencies]]
+  name = "github.com/go-sql-driver/mysql"
+  revision = "7ebe0a500653eeb1859664bed5e48dec1e164e73"
+
+[[dependencies]]
+  branch = "master"
+  name = "github.com/lib/pq"
+
+[[dependencies]]
+  branch = "v2"
+  name = "gopkg.in/yaml.v2"

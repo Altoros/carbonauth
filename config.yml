@@ -1,0 +1,22 @@
+---
+# address to listen to
+address: :8082
+
+# list of carbonapi addresses
+backends:
+- http://localhost:8081
+
+# admin credentials for users management
+auth:
+  username: admin
+  password: secret
+
+# salt for passwords hashing
+salt: seasalt
+
+# database url can be mysql:// or postgres://
+database_url: postgres://postgres:postgres@localhost/carbonapi?sslmode=disable
+
+#tls:
+#  cert_file:
+#  key_file:
