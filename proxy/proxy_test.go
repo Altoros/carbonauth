@@ -3,7 +3,9 @@ package proxy
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
+	"time"
 )
 
 func TestProxy_Proxy(t *testing.T) {
@@ -19,6 +21,7 @@ func TestProxy_Proxy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	p.SuspendTime = time.Millisecond
 
 	res := map[string]int{}
 	for i := 0; i < 10; i++ {
@@ -48,11 +51,42 @@ func TestProxy_Proxy(t *testing.T) {
 		}
 	}
 
+	// stop second backend
 	b2.Close()
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/asd", nil)
 	if err = p.Proxy(w, r); err != ErrNoBackends {
 		t.Errorf("err = %v, want ErrNoBackends", err)
+	}
+
+	m := http.NewServeMux()
+	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("one"))
+	})
+
+	u, err := url.Parse(b1.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := http.Server{Addr: ":" + u.Port(), Handler: m}
+	go func() {
+		if err := s.ListenAndServe(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	time.Sleep(10 * time.Millisecond)
+	defer s.Close()
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "/asd", nil)
+	if err = p.Proxy(w, r); err != nil {
+		t.Fatal(err)
+	}
+
+	if w.Body.String() != "one" {
+		t.Error("want fist backend to be up")
 	}
 }
 

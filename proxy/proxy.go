@@ -18,6 +18,8 @@ type Proxy struct {
 	backends []*url.URL
 	client   http.Client
 	mu       sync.RWMutex
+
+	SuspendTime time.Duration
 }
 
 // New creates new proxy instance
@@ -89,6 +91,8 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) error {
 	return err
 }
 
+var defaultSuspendTime = 5*time.Second
+
 // suspend removes u from backends list for 5 sec
 func (p *Proxy) suspend(u *url.URL) {
 	p.mu.Lock()
@@ -111,7 +115,12 @@ func (p *Proxy) suspend(u *url.URL) {
 
 	log.Printf("proxy: %s suspended", u)
 	go func() {
-		<-time.NewTimer(5 * time.Second).C
+		d := p.SuspendTime
+		if d == 0 {
+			d = defaultSuspendTime
+		}
+
+		<-time.NewTimer(d).C
 
 		p.mu.Lock()
 		p.backends = append(p.backends, u)

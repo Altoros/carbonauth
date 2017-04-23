@@ -32,7 +32,7 @@ type config struct {
 }
 
 func main() {
-	confPath := flag.String("config", "config.yml", "path to config file")
+	confPath := flag.String("c", "config.yml", "path to config file")
 	flag.Parse()
 
 	b, err := ioutil.ReadFile(*confPath)
