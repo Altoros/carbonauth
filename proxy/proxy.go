@@ -91,7 +91,7 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) error {
 	return err
 }
 
-var defaultSuspendTime = 5*time.Second
+var defaultSuspendTime = 5 * time.Second
 
 // suspend removes u from backends list for 5 sec
 func (p *Proxy) suspend(u *url.URL) {

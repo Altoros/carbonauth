@@ -34,8 +34,8 @@ func TestDB(t *testing.T) {
 	}
 
 	if u.Username != u2.Username &&
-			u.Password != u2.Password &&
-			len(u.Regexps) != len(u2.Regexps) {
+		u.Password != u2.Password &&
+		len(u.Regexps) != len(u2.Regexps) {
 		t.Error("users are not equal")
 	}
 

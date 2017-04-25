@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -61,8 +60,7 @@ func main() {
 	mux := http.DefaultServeMux
 	mux.HandleFunc("/users", basicAuth(saveUser(db), conf.Auth.Username, conf.Auth.Password))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// authorization is needed
-		if strings.HasPrefix(r.URL.Path, "/render") || strings.HasPrefix(r.URL.Path, "/find") {
+		if strings.HasPrefix(r.URL.Path, "/metrics/find") {
 			username, password, ok := r.BasicAuth()
 			if !ok {
 				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
@@ -75,12 +73,26 @@ func main() {
 				return
 			}
 
-			fmt.Printf("--> %#v\n", u.Regexps)
+			q, ok := r.URL.Query()["query"]
+			if !ok {
+
+			}
+
+			ok = false
+			for _, rx := range u.Regexps {
+				if rx.MatchString(q[0]) {
+					ok = true
+				}
+			}
+
+			if !ok {
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				return
+			}
 		}
 
 		if err := reverse.Proxy(w, r); err != nil {
-			log.Print(err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			httpError(w, err)
 			return
 		}
 	})
@@ -116,7 +128,7 @@ func saveUser(db *user.DB) http.HandlerFunc {
 			username, ok := r.URL.Query()["username"]
 			if ok && username[0] != "" {
 				if err := db.Delete(username[0]); err != nil {
-					http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+					httpError(w, err)
 					return
 				}
 			}
@@ -137,10 +149,15 @@ func saveUser(db *user.DB) http.HandlerFunc {
 		}
 
 		if err := db.Save(u); err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			httpError(w, err)
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
 	}
+}
+
+func httpError(w http.ResponseWriter, err error) {
+	log.Printf("error: %v", err)
+	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
