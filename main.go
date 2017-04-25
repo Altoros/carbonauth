@@ -61,36 +61,23 @@ func main() {
 	mux.HandleFunc("/users", basicAuth(saveUser(db), conf.Auth.Username, conf.Auth.Password))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/metrics/find") {
-			username, password, ok := r.BasicAuth()
-			if !ok {
-				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-				return
-			}
-
+			// authenticate user
+			username, password, _ := r.BasicAuth()
 			u, err := db.Find(username, password)
 			if err == user.ErrInvalidCredentials {
 				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 				return
 			}
 
-			q, ok := r.URL.Query()["query"]
-			if !ok {
-
-			}
-
-			ok = false
-			for _, rx := range u.Regexps {
-				if rx.MatchString(q[0]) {
-					ok = true
-				}
-			}
-
-			if !ok {
+			// authorize only when the query param is not empty
+			q := r.URL.Query()["query"]
+			if len(q) == 1 && q[0] != "" && !u.CanQuery(q[0]) {
 				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 				return
 			}
 		}
 
+		// proxy requests
 		if err := reverse.Proxy(w, r); err != nil {
 			httpError(w, err)
 			return
@@ -143,7 +130,7 @@ func saveUser(db *user.DB) http.HandlerFunc {
 		}
 
 		// validate fields
-		if len(u.Username) < 4 || len(u.Password) < 4 || len(u.Regexps) == 0 {
+		if len(u.Username) < 4 || len(u.Password) < 4 || len(u.Globs) == 0 {
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}

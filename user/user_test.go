@@ -1,50 +1,49 @@
 package user
 
 import (
-	"os"
-	"regexp"
+	"encoding/json"
+	"reflect"
 	"testing"
 )
 
-func TestDB(t *testing.T) {
-	u := &User{
-		Username: "user",
+func TestUser_CanQuery(t *testing.T) {
+	t.Parallel()
+
+	u := User{Globs: []string{"foo.*", "baz.*"}}
+	for q, want := range map[string]bool{
+		"*":       false,
+		"bar.*":   false,
+		"foo.*":   true,
+		"foo.bar": true,
+		"foo":     false,
+		"baz.a":   true,
+	} {
+		if u.CanQuery(q) != want {
+			t.Errorf("CanQuery(%q) = %t, want %t", q, u.CanQuery(q), want)
+		}
+	}
+}
+
+func TestUser_MarshalUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+
+	u1 := &User{
+		Username: "admin",
 		Password: "secret",
-		Regexps:  []*regexp.Regexp{regexp.MustCompile("^.*$")},
+		Globs:    []string{"foo.*", "bar.*"},
 	}
 
-	databaseURL := os.Getenv("TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Fatal("TEST_DATABASE_URL is not set")
-	}
-
-	db, err := Open(databaseURL, "seasalt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Clean()
-
-	if err = db.Save(u); err != nil {
-		t.Fatal(err)
-	}
-
-	u2, err := db.Find("user", "secret")
+	b, err := json.Marshal(u1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if u.Username != u2.Username &&
-		u.Password != u2.Password &&
-		len(u.Regexps) != len(u2.Regexps) {
-		t.Error("users are not equal")
-	}
-
-	if err = db.Delete("user"); err != nil {
+	u2 := &User{}
+	if err := json.Unmarshal(b, u2); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = db.Find("user", "secret")
-	if err != ErrInvalidCredentials {
-		t.Errorf("err = %v, want %v", err, ErrInvalidCredentials)
+	if !reflect.DeepEqual(u1, u2) {
+		t.Error("u != Unmarshal(Marshal*u))")
 	}
 }

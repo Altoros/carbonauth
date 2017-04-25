@@ -1,109 +1,78 @@
 package user
 
-import (
-	"crypto/sha256"
-	"encoding/base64"
-	"errors"
-	"regexp"
-)
+import "encoding/json"
 
 // User is user entity representation
 type User struct {
 	Username string
 	Password string
-	Regexps  []*regexp.Regexp
+	Globs    []string
 }
 
-// CanRead checks whether user has access to the named key
-func (u *User) CanRead(s string) bool {
-	for _, m := range u.Regexps {
-		if m.MatchString(s) {
-			return true
+func (u *User) CanQuery(q string) bool {
+	for _, g := range u.Globs {
+		for i := 0; i < len(q) && i < len(g); i++ {
+			if g[i] == '*' {
+				return true
+			}
+
+			if g[i] != q[i] {
+				break
+			}
 		}
 	}
 	return false
 }
 
-// UserSave creates or updates existing user
-func (db *DB) Save(u *User) error {
-	rows, err := db.query(`SELECT 1 FROM users WHERE username = $1`, u.Username)
-	if err != nil {
-		return err
-	}
-
-	// hash password
-	u.Password = hash(u.Password, db.salt)
-
-	regexps, err := dumpRegexps(u.Regexps)
-	if err != nil {
-		return err
-	}
-
-	// update existing user if it exists
-	if rows.Next() {
-		_, err = db.exec(`UPDATE users SET password = $1, regexps = $2 WHERE username = $3`,
-			u.Password, string(regexps), u.Username)
-		return err
-	}
-
-	// create a new record
-	_, err = db.exec(`INSERT INTO users (username, password, regexps) VALUES ($1, $2, $3)`,
-		u.Username, u.Password, string(regexps))
-	return err
+type userJSON struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Globs    []byte `json:"globs"`
 }
 
-// ErrInvalidCredentials returned when user cannot be found
-var ErrInvalidCredentials = errors.New("invalid username or password")
-
-// UserFind
-func (db *DB) Find(username, password string) (*User, error) {
-	rows, err := db.query(`
-		SELECT username, password, regexps
-		FROM users
-		WHERE Username = $1
-			AND Password = $2
-		LIMIT 1
-	`, username, hash(password, db.salt))
-
+// MarshalJSON returns the JSON encoding of u
+func (u *User) MarshalJSON() ([]byte, error) {
+	globs, err := json.Marshal(u.Globs)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	u := &User{}
-	b := []byte{}
-	for rows.Next() {
-		if err = rows.Scan(&u.Username, &u.Password, &b); err != nil {
-			return nil, err
-		}
+	return json.Marshal(&userJSON{
+		Username: u.Username,
+		Password: u.Password,
+		Globs:    globs,
+	})
+}
+
+// UnmarshalJSON parses JSON data and stores it in u
+func (u *User) UnmarshalJSON(b []byte) error {
+	var j userJSON
+	if err := json.Unmarshal(b, &j); err != nil {
+		return err
 	}
 
-	// user is not found
-	if u.Username == "" {
-		return nil, ErrInvalidCredentials
-	}
-
-	// convert bytes to regexps
-	regexps, err := loadRegexps(b)
+	globs, err := loadGlobs(j.Globs)
 	if err != nil {
+		return err
+	}
+
+	u.Username = j.Username
+	u.Password = j.Password
+	u.Globs = globs
+
+	return nil
+}
+
+// dumpGlobs dumps slice of strings into JSON encoding
+func dumpGlobs(globs []string) ([]byte, error) {
+	return json.Marshal(&globs)
+}
+
+// loadGlobs converts JSON into a slice of strings
+func loadGlobs(b []byte) ([]string, error) {
+	var globs []string
+	if err := json.Unmarshal(b, &globs); err != nil {
 		return nil, err
 	}
-	u.Regexps = regexps
-
-	return u, nil
-}
-
-// UserDelete deletes the named user
-func (db *DB) Delete(username string) error {
-	_, err := db.exec(`DELETE FROM users WHERE username = $1`, username)
-	return err
-}
-
-// hash returns base64 encoded hash of the provided string plus salt
-func hash(s, salt string) string {
-	h := sha256.New()
-	h.Write([]byte(s))
-	h.Write([]byte(salt))
-
-	return base64.StdEncoding.EncodeToString(h.Sum([]byte{}))[:32]
+	return globs, nil
 }

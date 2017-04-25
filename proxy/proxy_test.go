@@ -71,13 +71,10 @@ func TestProxy_Proxy(t *testing.T) {
 	}
 
 	s := http.Server{Addr: ":" + u.Port(), Handler: m}
-	go func() {
-		if err := s.ListenAndServe(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	time.Sleep(10 * time.Millisecond)
+	go s.ListenAndServe()
 	defer s.Close()
+
+	time.Sleep(10 * time.Millisecond)
 
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest(http.MethodGet, "/asd", nil)

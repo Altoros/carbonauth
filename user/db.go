@@ -1,6 +1,7 @@
 package user
 
 import (
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -43,7 +44,7 @@ func Open(url, salt string) (*DB, error) {
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		username VARCHAR(32) NOT NULL PRIMARY KEY,
 		password VARCHAR(32) NOT NULL,
-		regexps  TEXT
+		globs    TEXT
 	)`)
 
 	if err != nil {
@@ -84,4 +85,92 @@ func (db *DB) Clean() error {
 	}
 	_, err := db.Exec("DROP TABLE users")
 	return err
+}
+
+// UserSave creates or updates existing user
+func (db *DB) Save(u *User) error {
+	rows, err := db.query(`SELECT 1 FROM users WHERE username = $1`, u.Username)
+	if err != nil {
+		return err
+	}
+
+	// hash password
+	u.Password = hash(u.Password, db.salt)
+
+	globs, err := dumpGlobs(u.Globs)
+	if err != nil {
+		return err
+	}
+
+	// update existing user if it exists
+	if rows.Next() {
+		_, err = db.exec(`UPDATE users SET password = $1, globs = $2 WHERE username = $3`,
+			u.Password, globs, u.Username)
+		return err
+	}
+
+	// create a new record
+	_, err = db.exec(`INSERT INTO users (username, password, globs) VALUES ($1, $2, $3)`,
+		u.Username, u.Password, globs)
+	return err
+}
+
+// ErrInvalidCredentials returned when user cannot be found
+var ErrInvalidCredentials = errors.New("invalid username or password")
+
+// UserFind
+func (db *DB) Find(username, password string) (*User, error) {
+	if username == "" || password == "" {
+		return nil, ErrInvalidCredentials
+	}
+
+	rows, err := db.query(`
+		SELECT username, password, globs
+		FROM users
+		WHERE Username = $1
+			AND Password = $2
+		LIMIT 1
+	`, username, hash(password, db.salt))
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	u := &User{}
+	b := []byte{}
+	for rows.Next() {
+		if err = rows.Scan(&u.Username, &u.Password, &b); err != nil {
+			return nil, err
+		}
+	}
+
+	// user is not found
+	if u.Username == "" {
+		return nil, ErrInvalidCredentials
+	}
+
+	globs, err := loadGlobs(b)
+	if err != nil {
+		return nil, err
+	}
+	u.Globs = globs
+
+	return u, nil
+}
+
+// UserDelete deletes the named user
+func (db *DB) Delete(username string) error {
+	_, err := db.exec(`DELETE FROM users WHERE username = $1`, username)
+	return err
+}
+
+// hash returns base64 encoded hash of the provided string plus salt
+func hash(s, salt string) string {
+	h := sha256.New()
+	h.Write([]byte(s))
+	h.Write([]byte(salt))
+
+	// sha256 is 64 bytes long we need only 32
+	return fmt.Sprintf("%x", h.Sum(nil))[:32]
 }
