@@ -122,11 +122,28 @@ func saveUser(db *user.DB) http.HandlerFunc {
 	}
 }
 
+var endpoints = map[string]string{
+	"/metrics/find": "query",
+	"/render":       "target",
+	"/info":         "target",
+}
+
+// matchRoute matches the named request path to one of
+// supported routes and returns query parameter name or
+// returns an empty string
+func matchRoute(path string) string {
+	for p, param := range endpoints {
+		if strings.HasPrefix(path, p) {
+			return param
+		}
+	}
+	return ""
+}
+
 // ANY /
 func carbonAPI(db *user.DB, p *proxy.Proxy) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/metrics/find") {
-			// authenticate user
+		if k := matchRoute(r.URL.Path); k != "" {
 			username, password, _ := r.BasicAuth()
 			u, err := db.FindByUsernameAndPassword(username, password)
 			if err == user.ErrInvalidCredentials {
@@ -135,8 +152,8 @@ func carbonAPI(db *user.DB, p *proxy.Proxy) http.HandlerFunc {
 			}
 
 			// authorize only when the query param is not empty
-			q := r.URL.Query()["query"]
-			if len(q) == 1 && q[0] != "" && !u.CanQuery(q[0]) {
+			q := r.URL.Query()[k]
+			if len(q) == 1 && len(q[0]) != 0 && !u.CanQuery(q[0]) {
 				httpErrorCode(w, http.StatusUnauthorized)
 				return
 			}
