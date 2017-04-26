@@ -128,8 +128,8 @@ func (db *DB) Find(username, password string) (*User, error) {
 	rows, err := db.query(`
 		SELECT username, password, globs
 		FROM users
-		WHERE Username = $1
-			AND Password = $2
+		WHERE username = $1
+			AND password = $2
 		LIMIT 1
 	`, username, hash(password, db.salt))
 
