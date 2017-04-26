@@ -30,6 +30,18 @@ type Proxy struct {
 	SuspendTime time.Duration
 }
 
+var hopHeaders = map[string]bool{
+	"Connection":          true,
+	"Proxy-Connection":    true,
+	"Keep-Alive":          true,
+	"Proxy-Authenticate":  true,
+	"Proxy-Authorization": true,
+	"Te":                true,
+	"Trailer":           true,
+	"Transfer-Encoding": true,
+	"Upgrade":           true,
+}
+
 // New creates new proxy instance
 func New(urls ...string) (*Proxy, error) {
 	if len(urls) == 0 {
@@ -44,7 +56,11 @@ func New(urls ...string) (*Proxy, error) {
 		}
 		backends = append(backends, u)
 	}
-	return &Proxy{backends: backends}, nil
+	return &Proxy{backends: backends, Client: http.Client{
+		Transport: &http.Transport{
+			MaxIdleConnsPerHost: 50,
+		},
+	}}, nil
 }
 
 // ErrNoBackends is returned when all backends are currently suspended
@@ -72,9 +88,13 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// copy headers
-	for k, h := range r.Header {
-		for _, hh := range h {
-			req.Header.Add(k, hh)
+	for k, hh := range r.Header {
+		if hopHeaders[k] {
+			continue
+		}
+
+		for _, h := range hh {
+			req.Header.Add(k, h)
 		}
 	}
 
@@ -93,6 +113,10 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) error {
 
 		p.suspend(backend)
 		return p.Proxy(w, r)
+	}
+
+	for k, _ := range hopHeaders {
+		res.Header.Del(k)
 	}
 
 	w.WriteHeader(res.StatusCode)
