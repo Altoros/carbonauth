@@ -13,12 +13,17 @@ import (
 	"time"
 )
 
+var defaultSuspendTime = 5 * time.Second
+
 // Proxy is a multi-host reverse proxy / load balancer
 type Proxy struct {
 	backends []*url.URL
 	client   http.Client
 	mu       sync.RWMutex
 
+	// SuspendTime determines for how long a backend server is removed
+	// from the backends pool in case of some connection error
+	// if it is zero then the defaultSuspendTime value is used
 	SuspendTime time.Duration
 }
 
@@ -91,8 +96,6 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) error {
 	res.Body.Close()
 	return err
 }
-
-var defaultSuspendTime = 5 * time.Second
 
 // suspend removes u from backends list for 5 sec
 func (p *Proxy) suspend(u *url.URL) {
