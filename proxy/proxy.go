@@ -13,13 +13,16 @@ import (
 	"time"
 )
 
+// defaultSuspendTime is used when SuspendTime is zero
 var defaultSuspendTime = 5 * time.Second
 
-// Proxy is a multi-host reverse proxy / load balancer
+// Proxy is a multi-host http reverse proxy / load balancer
 type Proxy struct {
-	backends []*url.URL
-	client   http.Client
 	mu       sync.RWMutex
+	backends []*url.URL
+
+	// Client is an HTTP client
+	Client http.Client
 
 	// SuspendTime determines for how long a backend server is removed
 	// from the backends pool in case of some connection error
@@ -44,6 +47,7 @@ func New(urls ...string) (*Proxy, error) {
 	return &Proxy{backends: backends}, nil
 }
 
+// ErrNoBackends is returned when all backends are currently suspended
 var ErrNoBackends = errors.New("no backend are availabe")
 
 // ServeHTTP proxies http requests to one of backends using round-robin algorithm
@@ -81,7 +85,7 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) error {
 		req.Header.Set("X-Forwarded-For", ip)
 	}
 
-	res, err := p.client.Do(req)
+	res, err := p.Client.Do(req)
 	if err != nil {
 		if err == ErrNoBackends {
 			return err
@@ -97,7 +101,7 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) error {
 	return err
 }
 
-// suspend removes u from backends list for 5 sec
+// suspend temporarily removes u from the backends list
 func (p *Proxy) suspend(u *url.URL) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

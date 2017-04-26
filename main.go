@@ -36,6 +36,7 @@ func main() {
 	confPath := flag.String("c", "config.yml", "path to config file")
 	flag.Parse()
 
+	// read configuration from the provided yml file
 	b, err := ioutil.ReadFile(*confPath)
 	if err != nil {
 		log.Fatal(err)
@@ -43,18 +44,18 @@ func main() {
 
 	var conf config
 	if err = yaml.Unmarshal(b, &conf); err != nil {
-		log.Fatal(err)
+		log.Fatalf("config parsing error: %v", err)
 	}
 
 	db, err := user.Open(conf.DatabaseURL, conf.Salt)
 	if err != nil {
-		log.Fatalf("db connect: %v", err)
+		log.Fatalf("db connect error: %v", err)
 	}
 	defer db.Close()
 
 	p, err := proxy.New(conf.Backends...)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("proxy error: %v", err)
 	}
 
 	mux := http.DefaultServeMux
