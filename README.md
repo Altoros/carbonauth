@@ -11,7 +11,6 @@ Copy `config.yml.example` to `config.yml` and adjust configuration values.
 ### Usage
 
 Create user:
-
 ```
 curl -X POST admin:admin@localhost:8082/users -d '{
   "username": "test",
@@ -26,7 +25,6 @@ curl -X DELETE admin:admin@localhost:8082/users?username=test
 ```
 
 Querying carbon:
-
 ```
 curl test:secret@localhost:8082/metrics/find?query=foo.*
 ```
