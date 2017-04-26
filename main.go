@@ -59,8 +59,8 @@ func main() {
 	}
 
 	mux := http.DefaultServeMux
-	mux.HandleFunc("/users", basicAuth(saveUser(db), conf.Auth.Username, conf.Auth.Password))
-	mux.HandleFunc("/", carbonAPI(db, p))
+	mux.HandleFunc("/users", usersHandler(db, conf.Auth.Username, conf.Auth.Password))
+	mux.HandleFunc("/", carbonHandler(db, p))
 
 	srv := http.Server{Addr: conf.Address, Handler: mux}
 	if conf.TLS.CertFile != "" && conf.TLS.KeyFile != "" {
@@ -84,8 +84,8 @@ func basicAuth(h http.HandlerFunc, username, password string) http.HandlerFunc {
 }
 
 // DELETE POST /users
-func saveUser(db *user.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func usersHandler(db *user.DB, username, password string) http.HandlerFunc {
+	return basicAuth(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodDelete:
 			username, ok := r.URL.Query()["username"]
@@ -119,7 +119,7 @@ func saveUser(db *user.DB) http.HandlerFunc {
 		default:
 			httpErrorCode(w, http.StatusMethodNotAllowed)
 		}
-	}
+	}, username, password)
 }
 
 var endpoints = map[string]string{
@@ -141,7 +141,7 @@ func matchRoute(path string) string {
 }
 
 // ANY /
-func carbonAPI(db *user.DB, p *proxy.Proxy) http.HandlerFunc {
+func carbonHandler(db *user.DB, p *proxy.Proxy) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if k := matchRoute(r.URL.Path); k != "" {
 			username, password, _ := r.BasicAuth()
