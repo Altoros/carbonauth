@@ -76,18 +76,18 @@ func basicAuth(h http.HandlerFunc, username, password string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, p, ok := r.BasicAuth()
 		if !ok || (username != u && password != p) {
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			httpErrorCode(w, http.StatusUnauthorized)
 			return
 		}
 		h(w, r)
 	}
 }
 
-// ANY /users
+// DELETE POST /users
 func saveUser(db *user.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// DELETE
-		if r.Method == http.MethodDelete {
+		switch r.Method {
+		case http.MethodDelete:
 			username, ok := r.URL.Query()["username"]
 			if ok && username[0] != "" {
 				if err := db.Delete(username[0]); err != nil {
@@ -97,26 +97,28 @@ func saveUser(db *user.DB) http.HandlerFunc {
 			}
 			w.WriteHeader(http.StatusOK)
 			return
-		}
+		case http.MethodPost:
+			u := &user.User{}
+			if err := json.NewDecoder(r.Body).Decode(u); err != nil {
+				httpErrorCode(w, http.StatusBadRequest)
+				return
+			}
 
-		u := &user.User{}
-		if err := json.NewDecoder(r.Body).Decode(u); err != nil {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
-		}
+			// validate fields
+			if len(u.Username) < 4 || len(u.Password) < 4 || len(u.Globs) == 0 {
+				httpErrorCode(w, http.StatusBadRequest)
+				return
+			}
 
-		// validate fields
-		if len(u.Username) < 4 || len(u.Password) < 4 || len(u.Globs) == 0 {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
-		}
+			if err := db.Save(u); err != nil {
+				httpError(w, err)
+				return
+			}
 
-		if err := db.Save(u); err != nil {
-			httpError(w, err)
-			return
+			w.WriteHeader(http.StatusOK)
+		default:
+			httpErrorCode(w, http.StatusMethodNotAllowed)
 		}
-
-		w.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -126,16 +128,16 @@ func carbonAPI(db *user.DB, p *proxy.Proxy) http.HandlerFunc {
 		if strings.HasPrefix(r.URL.Path, "/metrics/find") {
 			// authenticate user
 			username, password, _ := r.BasicAuth()
-			u, err := db.Find(username, password)
+			u, err := db.FindByUsernameAndPassword(username, password)
 			if err == user.ErrInvalidCredentials {
-				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				httpErrorCode(w, http.StatusUnauthorized)
 				return
 			}
 
 			// authorize only when the query param is not empty
 			q := r.URL.Query()["query"]
 			if len(q) == 1 && q[0] != "" && !u.CanQuery(q[0]) {
-				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				httpErrorCode(w, http.StatusUnauthorized)
 				return
 			}
 		}
@@ -150,5 +152,9 @@ func carbonAPI(db *user.DB, p *proxy.Proxy) http.HandlerFunc {
 
 func httpError(w http.ResponseWriter, err error) {
 	log.Printf("error: %v", err)
-	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	httpErrorCode(w, http.StatusInternalServerError)
+}
+
+func httpErrorCode(w http.ResponseWriter, code int) {
+	http.Error(w, http.StatusText(code), code)
 }

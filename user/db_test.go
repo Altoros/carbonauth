@@ -27,7 +27,7 @@ func TestDB(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	u2, err := db.Find("user", "secret")
+	u2, err := db.FindByUsernameAndPassword("user", "secret")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestDB(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = db.Find("user", "secret")
+	_, err = db.FindByUsernameAndPassword("user", "secret")
 	if err != ErrInvalidCredentials {
 		t.Errorf("err = %v, want %v", err, ErrInvalidCredentials)
 	}

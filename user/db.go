@@ -119,8 +119,8 @@ func (db *DB) Save(u *User) error {
 // ErrInvalidCredentials returned when user cannot be found
 var ErrInvalidCredentials = errors.New("invalid username or password")
 
-// UserFind
-func (db *DB) Find(username, password string) (*User, error) {
+// FindByUsernameAndPassword
+func (db *DB) FindByUsernameAndPassword(username, password string) (*User, error) {
 	if username == "" || password == "" {
 		return nil, ErrInvalidCredentials
 	}
