@@ -88,6 +88,7 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) error {
 
 	w.WriteHeader(res.StatusCode)
 	_, err = io.Copy(w, res.Body)
+	res.Body.Close()
 	return err
 }
 

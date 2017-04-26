@@ -52,37 +52,14 @@ func main() {
 	}
 	defer db.Close()
 
-	reverse, err := proxy.New(conf.Backends...)
+	p, err := proxy.New(conf.Backends...)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	mux := http.DefaultServeMux
 	mux.HandleFunc("/users", basicAuth(saveUser(db), conf.Auth.Username, conf.Auth.Password))
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/metrics/find") {
-			// authenticate user
-			username, password, _ := r.BasicAuth()
-			u, err := db.Find(username, password)
-			if err == user.ErrInvalidCredentials {
-				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-				return
-			}
-
-			// authorize only when the query param is not empty
-			q := r.URL.Query()["query"]
-			if len(q) == 1 && q[0] != "" && !u.CanQuery(q[0]) {
-				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-				return
-			}
-		}
-
-		// proxy requests
-		if err := reverse.Proxy(w, r); err != nil {
-			httpError(w, err)
-			return
-		}
-	})
+	mux.HandleFunc("/", carbonAPI(db, p))
 
 	srv := http.Server{Addr: conf.Address, Handler: mux}
 	if conf.TLS.CertFile != "" && conf.TLS.KeyFile != "" {
@@ -141,6 +118,33 @@ func saveUser(db *user.DB) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func carbonAPI(db *user.DB, p *proxy.Proxy) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/metrics/find") {
+			// authenticate user
+			username, password, _ := r.BasicAuth()
+			u, err := db.Find(username, password)
+			if err == user.ErrInvalidCredentials {
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				return
+			}
+
+			// authorize only when the query param is not empty
+			q := r.URL.Query()["query"]
+			if len(q) == 1 && q[0] != "" && !u.CanQuery(q[0]) {
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				return
+			}
+		}
+
+		// proxy requests
+		if err := p.Proxy(w, r); err != nil {
+			httpError(w, err)
+			return
+		}
 	}
 }
 
