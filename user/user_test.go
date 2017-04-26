@@ -1,10 +1,6 @@
 package user
 
-import (
-	"encoding/json"
-	"reflect"
-	"testing"
-)
+import "testing"
 
 func TestUser_CanQuery(t *testing.T) {
 	t.Parallel()
@@ -21,29 +17,5 @@ func TestUser_CanQuery(t *testing.T) {
 		if u.CanQuery(q) != want {
 			t.Errorf("CanQuery(%q) = %t, want %t", q, u.CanQuery(q), want)
 		}
-	}
-}
-
-func TestUser_MarshalUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-
-	u1 := &User{
-		Username: "admin",
-		Password: "secret",
-		Globs:    []string{"foo.*", "bar.*"},
-	}
-
-	b, err := json.Marshal(u1)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	u2 := &User{}
-	if err := json.Unmarshal(b, u2); err != nil {
-		t.Fatal(err)
-	}
-
-	if !reflect.DeepEqual(u1, u2) {
-		t.Error("u != Unmarshal(Marshal*u))")
 	}
 }

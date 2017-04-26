@@ -3,6 +3,7 @@ package user
 import (
 	"crypto/sha256"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -97,7 +98,7 @@ func (db *DB) Save(u *User) error {
 	// hash password
 	u.Password = hash(u.Password, db.salt)
 
-	globs, err := dumpGlobs(u.Globs)
+	globs, err := marshalStringSlice(u.Globs)
 	if err != nil {
 		return err
 	}
@@ -137,8 +138,8 @@ func (db *DB) Find(username, password string) (*User, error) {
 	}
 	defer rows.Close()
 
-	u := &User{}
-	b := []byte{}
+	var u User
+	var b []byte
 	for rows.Next() {
 		if err = rows.Scan(&u.Username, &u.Password, &b); err != nil {
 			return nil, err
@@ -150,13 +151,13 @@ func (db *DB) Find(username, password string) (*User, error) {
 		return nil, ErrInvalidCredentials
 	}
 
-	globs, err := loadGlobs(b)
+	globs, err := unmarshalStringSlice(b)
 	if err != nil {
 		return nil, err
 	}
 	u.Globs = globs
 
-	return u, nil
+	return &u, nil
 }
 
 // UserDelete deletes the named user
@@ -171,6 +172,20 @@ func hash(s, salt string) string {
 	h.Write([]byte(s))
 	h.Write([]byte(salt))
 
-	// sha256 is 64 bytes long we need only 32
+	// base16 is 64 bytes long we need only 32
 	return fmt.Sprintf("%x", h.Sum(nil))[:32]
+}
+
+// marshalStringSlice dumps a slice of strings into byte encoding
+func marshalStringSlice(ss []string) ([]byte, error) {
+	return json.Marshal(&ss)
+}
+
+// unmarshalStringSlice converts byte encoding into a slice of strings
+func unmarshalStringSlice(b []byte) ([]string, error) {
+	var ss []string
+	if err := json.Unmarshal(b, &ss); err != nil {
+		return nil, err
+	}
+	return ss, nil
 }
