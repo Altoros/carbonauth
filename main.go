@@ -85,8 +85,6 @@ func basicAuth(h http.HandlerFunc, username, password string) http.HandlerFunc {
 // ANY /users
 func saveUser(db *user.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
-
 		// DELETE
 		if r.Method == http.MethodDelete {
 			username, ok := r.URL.Query()["username"]
@@ -121,6 +119,7 @@ func saveUser(db *user.DB) http.HandlerFunc {
 	}
 }
 
+// ANY /
 func carbonAPI(db *user.DB, p *proxy.Proxy) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/metrics/find") {
