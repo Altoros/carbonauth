@@ -1,0 +1,4 @@
+
+[[dependencies]]
+  branch = "v2"
+  name = "gopkg.in/yaml.v2"

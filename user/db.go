@@ -28,7 +28,7 @@ func Open(url, salt string) (*DB, error) {
 	switch chunks[0] {
 	case "mysql":
 	case "postgres":
-	case "sqlite":
+	case "sqlite3":
 	default:
 		return nil, fmt.Errorf("%q scheme is not supported", chunks[0])
 	}

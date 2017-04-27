@@ -15,7 +15,7 @@ auth:
 # salt for passwords hashing
 salt: seasalt
 
-# database url can be mysql://, postgres:// or sqlite://
+# database url can be mysql://, postgres:// or sqlite3://
 database_url: postgres://postgres:postgres@localhost/carbonapi?sslmode=disable
 
 #tls:
