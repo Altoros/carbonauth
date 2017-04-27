@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type DB struct {
@@ -27,6 +28,7 @@ func Open(url, salt string) (*DB, error) {
 	switch chunks[0] {
 	case "mysql":
 	case "postgres":
+	case "sqlite":
 	default:
 		return nil, fmt.Errorf("%q scheme is not supported", chunks[0])
 	}
