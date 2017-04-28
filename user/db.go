@@ -9,9 +9,9 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/cznic/sqlite"
 	"github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 type DB struct {
@@ -33,9 +33,11 @@ func Open(url, salt string) (*DB, error) {
 		return nil, fmt.Errorf("%q scheme is not supported", chunks[0])
 	}
 
-	// postgres needs whole url address
-	if chunks[0] == "postgres" {
+	switch chunks[0] {
+	case "postgres":
 		chunks[1] = url
+	case "sqlite3":
+		chunks[0] = "sqlite"
 	}
 
 	db, err := sql.Open(chunks[0], chunks[1])
@@ -81,7 +83,9 @@ func (db *DB) query(tx *sql.Tx, q string, v ...interface{}) (*sql.Rows, error) {
 // prep is needed for mysql compatibility
 // it replaces postgres $ placeholders with ?
 func (db *DB) prep(q string) string {
-	if _, ok := db.Driver().(*mysql.MySQLDriver); ok {
+	switch db.Driver().(type) {
+	case *mysql.MySQLDriver:
+	case *sqlite.Driver:
 		q = placeholderRegexp.ReplaceAllString(q, "?")
 	}
 	return q
