@@ -92,7 +92,13 @@ type rw struct {
 
 func (rw *rw) WriteHeader(code int) {
 	rw.ResponseWriter.WriteHeader(code)
-	log.Printf("%s %s%s %d", rw.r.Method, rw.r.URL.Path, rw.r.URL.RawQuery, code)
+
+	q := rw.r.URL.RawQuery
+	if q != "" {
+		q = "?"+q
+	}
+
+	log.Printf("%s %s%s %d", rw.r.Method, rw.r.URL.Path, q, code)
 }
 
 func requestsLogger(h http.HandlerFunc) http.HandlerFunc {
