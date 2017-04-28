@@ -8,9 +8,12 @@ import (
 	"net/http"
 	"strings"
 
+	"io"
+
 	"github.com/Altoros/carbonauth/proxy"
 	"github.com/Altoros/carbonauth/user"
 	"gopkg.in/yaml.v2"
+	"bytes"
 )
 
 type config struct {
@@ -88,6 +91,7 @@ func basicAuth(h http.HandlerFunc, username, password string) http.HandlerFunc {
 type rw struct {
 	http.ResponseWriter
 	r *http.Request
+	b []byte
 }
 
 func (rw *rw) WriteHeader(code int) {
@@ -95,15 +99,38 @@ func (rw *rw) WriteHeader(code int) {
 
 	q := rw.r.URL.RawQuery
 	if q != "" {
-		q = "?"+q
+		q = "?" + q
 	}
 
 	log.Printf("%s %s%s %d", rw.r.Method, rw.r.URL.Path, q, code)
+	if len(rw.b) > 0 {
+		log.Printf("     %s", rw.b)
+	}
+}
+
+type rb struct {
+	io.ReadCloser
+	io.Reader
+}
+
+func (r *rb) Read(p []byte) (int, error) {
+	return r.Reader.Read(p)
+}
+
+func (r *rb) Close() error {
+	return r.ReadCloser.Close()
 }
 
 func requestsLogger(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		h(&rw{w, r}, r)
+		b, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+
+		r.Body = &rb{ReadCloser: r.Body, Reader: bytes.NewReader(b)}
+		h(&rw{ResponseWriter: w, r: r, b: b}, r)
 	}
 }
 
