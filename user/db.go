@@ -96,6 +96,7 @@ func (db *DB) Save(u *User) error {
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
 
 	// hash password
 	u.Password = hash(u.Password, db.salt)
