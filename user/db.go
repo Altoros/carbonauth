@@ -63,13 +63,19 @@ func Open(url, salt string) (*DB, error) {
 var placeholderRegexp = regexp.MustCompile("\\$\\d+")
 
 // exec executes a query without returning rows
-func (db *DB) exec(q string, v ...interface{}) (sql.Result, error) {
-	return db.Exec(db.prep(q), v...)
+func (db *DB) exec(tx *sql.Tx, q string, v ...interface{}) (sql.Result, error) {
+	if tx == nil {
+		return db.Exec(db.prep(q), v...)
+	}
+	return tx.Exec(db.prep(q), v...)
 }
 
 // query executes a query that returns rows
-func (db *DB) query(q string, v ...interface{}) (*sql.Rows, error) {
-	return db.Query(db.prep(q), v...)
+func (db *DB) query(tx *sql.Tx, q string, v ...interface{}) (*sql.Rows, error) {
+	if tx == nil {
+		return db.Query(db.prep(q), v...)
+	}
+	return tx.Query(db.prep(q), v...)
 }
 
 // prep is needed for mysql compatibility
@@ -92,7 +98,18 @@ func (db *DB) Clean() error {
 
 // UserSave creates or updates existing user
 func (db *DB) Save(u *User) error {
-	rows, err := db.query(`SELECT 1 FROM users WHERE username = $1`, u.Username)
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+		err = tx.Commit()
+	}()
+
+	rows, err := db.query(tx, `SELECT 1 FROM users WHERE username = $1`, u.Username)
 	if err != nil {
 		return err
 	}
@@ -108,13 +125,13 @@ func (db *DB) Save(u *User) error {
 
 	// update existing user if it exists
 	if rows.Next() {
-		_, err = db.exec(`UPDATE users SET password = $1, globs = $2 WHERE username = $3`,
+		_, err = db.exec(tx, `UPDATE users SET password = $1, globs = $2 WHERE username = $3`,
 			u.Password, globs, u.Username)
 		return err
 	}
 
 	// create a new record
-	_, err = db.exec(`INSERT INTO users (username, password, globs) VALUES ($1, $2, $3)`,
+	_, err = db.exec(tx, `INSERT INTO users (username, password, globs) VALUES ($1, $2, $3)`,
 		u.Username, u.Password, globs)
 	return err
 }
@@ -128,7 +145,7 @@ func (db *DB) FindByUsernameAndPassword(username, password string) (*User, error
 		return nil, ErrInvalidCredentials
 	}
 
-	rows, err := db.query(`
+	rows, err := db.query(nil, `
 		SELECT username, password, globs
 		FROM users
 		WHERE username = $1
@@ -165,7 +182,7 @@ func (db *DB) FindByUsernameAndPassword(username, password string) (*User, error
 
 // UserDelete deletes the named user
 func (db *DB) Delete(username string) error {
-	_, err := db.exec(`DELETE FROM users WHERE username = $1`, username)
+	_, err := db.exec(nil, `DELETE FROM users WHERE username = $1`, username)
 	return err
 }
 
