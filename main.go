@@ -195,6 +195,8 @@ func matchRoute(path string) filterFunc {
 // ANY /
 func carbonHandler(db *user.DB, p *proxy.Proxy) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("%s %s%s", r.Method, r.URL.Path, r.URL.RawQuery)
+
 		username, password, _ := r.BasicAuth()
 		u, err := db.FindByUsernameAndPassword(username, password)
 		if err == user.ErrInvalidCredentials {
