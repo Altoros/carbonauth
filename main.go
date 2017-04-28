@@ -131,29 +131,28 @@ var endpoints = map[string]filterFunc{
 	"/render":       filterRender,
 }
 
-// copy from carbonapi
-type treejson struct {
-	AllowChildren int            `json:"allowChildren"`
-	Expandable    int            `json:"expandable"`
-	Leaf          int            `json:"leaf"`
-	ID            string         `json:"id"`
-	Text          string         `json:"text"`
-	Context       map[string]int `json:"context"` // unused
-}
-
 func filterFind(u *user.User, r *http.Response) ([]byte, error) {
-	var tree []*treejson
-	if err := json.NewDecoder(r.Body).Decode(&tree); err != nil {
+	metrics := []json.RawMessage{}
+	if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
 		return nil, err
 	}
 
-	res := make([]*treejson, 0, len(tree))
-	for _, leaf := range tree {
-		if u.Can(leaf.ID) {
-			res = append(res, leaf)
-		}
+	var m struct {
+		ID string `json:"id"`
 	}
-	return json.Marshal(res)
+
+	result := make([]json.RawMessage, 0, len(metrics))
+	for _, metric := range metrics {
+		if err := json.Unmarshal(metric, &m); err != nil {
+			return nil, err
+		}
+
+		if !u.Can(m.ID) {
+			continue
+		}
+		result = append(result, metric)
+	}
+	return json.Marshal(metrics)
 }
 
 func filterRender(u *user.User, r *http.Response) ([]byte, error) {
@@ -175,10 +174,8 @@ func filterRender(u *user.User, r *http.Response) ([]byte, error) {
 		if !u.Can(m.Target) {
 			continue
 		}
-
 		result = append(result, metric)
 	}
-
 	return json.Marshal(metrics)
 }
 

@@ -26,7 +26,7 @@ func TestFlow(t *testing.T) {
 	h := http.NewServeMux()
 	h.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		w.Write([]byte(`[]`))
 	})
 
 	b := httptest.NewServer(h)
