@@ -5,7 +5,7 @@ import "testing"
 func TestUser_CanQuery(t *testing.T) {
 	t.Parallel()
 
-	u := User{Globs: []string{"foo.*", "baz.*"}}
+	u := User{Globs: []string{"foo.*", "baz.*", "bam"}}
 	for q, want := range map[string]bool{
 		"*":       false,
 		"bar.*":   false,
@@ -13,9 +13,12 @@ func TestUser_CanQuery(t *testing.T) {
 		"foo.bar": true,
 		"foo":     false,
 		"baz.a":   true,
+		"bam":     true,
+		"bam1":    false,
+		"ba":      false,
 	} {
-		if u.CanQuery(q) != want {
-			t.Errorf("CanQuery(%q) = %t, want %t", q, u.CanQuery(q), want)
+		if u.Can(q) != want {
+			t.Errorf("Can(%q) = %t, want %t", q, u.Can(q), want)
 		}
 	}
 }

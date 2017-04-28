@@ -7,16 +7,20 @@ type User struct {
 	Globs    []string `json:"globs"`
 }
 
-// CanQuery returns true when q matches at least one of user's globs
-func (u *User) CanQuery(q string) bool {
+// Can returns true when s matches at least one of user's globs
+func (u *User) Can(s string) bool {
 	for _, g := range u.Globs {
-		for i := 0; i < len(q) && i < len(g); i++ {
+		for i := 0; i < len(s) && i < len(g); i++ {
 			if g[i] == '*' {
 				return true
 			}
 
-			if g[i] != q[i] {
+			if g[i] != s[i] {
 				break
+			}
+
+			if i == len(s) - 1 && i == len(g) - 1 {
+				return true
 			}
 		}
 	}
