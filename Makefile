@@ -1,4 +1,4 @@
-build: test
+build:
 	go build -i -ldflags "-w -s -extldflags=-static"
 
 test:
