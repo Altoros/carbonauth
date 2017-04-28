@@ -14,7 +14,7 @@ func TestDB(t *testing.T) {
 
 	databaseURL := os.Getenv("TEST_DATABASE_URL")
 	if databaseURL == "" {
-		t.Fatal("TEST_DATABASE_URL is not set")
+		databaseURL = "sqlite3://:memory:"
 	}
 
 	db, err := Open(databaseURL, "seasalt")

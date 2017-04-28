@@ -14,7 +14,7 @@ import (
 func TestFlow(t *testing.T) {
 	databaseURL := os.Getenv("TEST_DATABASE_URL")
 	if databaseURL == "" {
-		t.Fatal("TEST_DATABASE_URL is not set")
+		databaseURL = "sqlite3://:memory:"
 	}
 
 	db, err := user.Open(databaseURL, "seasalt")
@@ -74,6 +74,7 @@ func TestFlow(t *testing.T) {
 			r := httptest.NewRequest("GET", url, nil)
 			r.SetBasicAuth("user", "secret")
 			ch.ServeHTTP(w, r)
+
 			if w.Code != http.StatusOK {
 				t.Errorf("GET %s code = %d, want %d", url, w.Code, http.StatusOK)
 			} else if w.Body.String() != body {
