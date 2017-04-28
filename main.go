@@ -128,7 +128,7 @@ type filterFunc func(*user.User, *http.Response) ([]byte, error)
 
 var endpoints = map[string]filterFunc{
 	"/metrics/find": filterFind,
-	//"/render":       "target",
+	"/render":       filterRender,
 }
 
 // copy from carbonapi
@@ -156,9 +156,34 @@ func filterFind(u *user.User, r *http.Response) ([]byte, error) {
 	return json.Marshal(res)
 }
 
-// matchRoute matches the named request path to one of
-// supported routes and returns query parameter name or
-// returns an empty string
+func filterRender(u *user.User, r *http.Response) ([]byte, error) {
+	metrics := []json.RawMessage{}
+	if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
+		return nil, err
+	}
+
+	var m struct {
+		Target string `json:"target"`
+	}
+
+	result := make([]json.RawMessage, 0, len(metrics))
+	for _, metric := range metrics {
+		if err := json.Unmarshal(metric, &m); err != nil {
+			return nil, err
+		}
+
+		if !u.Can(m.Target) {
+			continue
+		}
+
+		result = append(result, metric)
+	}
+
+	return json.Marshal(metrics)
+}
+
+// matchRoute matches the named request path to its
+// carbonapi response filter function or returns nil
 func matchRoute(path string) filterFunc {
 	for p, fn := range endpoints {
 		if strings.HasPrefix(path, p) {
@@ -171,36 +196,41 @@ func matchRoute(path string) filterFunc {
 // ANY /
 func carbonHandler(db *user.DB, p *proxy.Proxy) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if fn := matchRoute(r.URL.Path); fn != nil {
-			username, password, _ := r.BasicAuth()
-			u, err := db.FindByUsernameAndPassword(username, password)
-			if err == user.ErrInvalidCredentials {
-				httpErrorCode(w, http.StatusUnauthorized)
-				return
-			}
-
-			res, err := p.Proxy(r)
-			if err != nil {
-				httpError(w, err)
-				return
-			}
-			defer res.Body.Close()
-
-			// filter response
-			b, err := fn(u, res)
-			if err != nil {
-				httpError(w, err)
-				return
-			}
-
-			for k, hh := range res.Header {
-				for _, h := range hh {
-					w.Header().Add(k, h)
-				}
-			}
-			w.WriteHeader(res.StatusCode)
-			w.Write(b)
+		username, password, _ := r.BasicAuth()
+		u, err := db.FindByUsernameAndPassword(username, password)
+		if err == user.ErrInvalidCredentials {
+			httpErrorCode(w, http.StatusUnauthorized)
+			return
 		}
+
+		res, err := p.Proxy(r)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+		defer res.Body.Close()
+
+		// routing
+		fn := matchRoute(r.URL.Path)
+		if fn == nil {
+			httpErrorCode(w, http.StatusNotFound)
+			return
+		}
+
+		// filter response when needed
+		b, err := fn(u, res)
+		if err != nil {
+			httpError(w, err)
+			return
+		}
+
+		for k, hh := range res.Header {
+			for _, h := range hh {
+				w.Header().Add(k, h)
+			}
+		}
+		w.WriteHeader(res.StatusCode)
+		w.Write(b)
 	}
 }
 
