@@ -1,7 +1,9 @@
 package proxy
 
 import (
+	"compress/gzip"
 	"errors"
+	"io"
 	"log"
 	"math/rand"
 	"net"
@@ -97,6 +99,12 @@ func (p *Proxy) Proxy(r *http.Request) (*http.Response, error) {
 		}
 	}
 
+	// we accept only gzip
+	ae := req.Header.Get("Accept-Encoding")
+	if strings.Contains(ae, "gzip") {
+		req.Header.Set("Accept-Encoding", "gzip")
+	}
+
 	if ip, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
 		if prior, ok := req.Header["X-Forwarded-For"]; ok {
 			ip = strings.Join(prior, ", ") + ", " + ip
@@ -118,7 +126,28 @@ func (p *Proxy) Proxy(r *http.Request) (*http.Response, error) {
 		res.Header.Del(k)
 	}
 
+	// decode gzip encoding
+	if res.Header.Get("Content-Encoding") == "gzip" {
+		res.Header.Del("Content-Length")
+
+		zr, err := gzip.NewReader(res.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		res.Body = &gzr{zr, res.Body}
+	}
+
 	return res, nil
+}
+
+type gzr struct {
+	*gzip.Reader
+	io.Closer
+}
+
+func (gz *gzr) Close() error {
+	return gz.Closer.Close()
 }
 
 // suspend temporarily removes u from the backends list
