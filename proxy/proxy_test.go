@@ -1,12 +1,21 @@
 package proxy
 
 import (
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
 )
+
+func bodyString(r *http.Response) string {
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
+}
 
 func TestProxy_Proxy(t *testing.T) {
 	t.Parallel()
@@ -25,12 +34,12 @@ func TestProxy_Proxy(t *testing.T) {
 
 	res := map[string]int{}
 	for i := 0; i < 10; i++ {
-		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/asd", nil)
-		if err := p.Proxy(w, r); err != nil {
+		b, err := p.Proxy(r)
+		if err != nil {
 			t.Fatal(err)
 		}
-		res[w.Body.String()] = res[w.Body.String()] + 1
+		res[bodyString(b)] = res[bodyString(b)] + 1
 	}
 
 	if res["one"] == 0 || res["two"] == 0 {
@@ -40,22 +49,22 @@ func TestProxy_Proxy(t *testing.T) {
 	// stop first backend
 	b1.Close()
 	for i := 0; i < 10; i++ {
-		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/asd", nil)
-		if err := p.Proxy(w, r); err != nil {
+		b, err := p.Proxy(r)
+		if err != nil {
 			t.Fatal(err)
 		}
 
-		if w.Body.String() == "one" {
+		if bodyString(b) == "one" {
 			t.Error("first backend expected to be down but it's not")
 		}
 	}
 
 	// stop second backend
 	b2.Close()
-	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/asd", nil)
-	if err = p.Proxy(w, r); err != ErrNoBackends {
+	_, err = p.Proxy(r)
+	if err != ErrNoBackends {
 		t.Errorf("err = %v, want ErrNoBackends", err)
 	}
 
@@ -76,13 +85,13 @@ func TestProxy_Proxy(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 
-	w = httptest.NewRecorder()
 	r = httptest.NewRequest(http.MethodGet, "/asd", nil)
-	if err = p.Proxy(w, r); err != nil {
+	b, err := p.Proxy(r)
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	if w.Body.String() != "one" {
+	if bodyString(b) != "one" {
 		t.Error("want fist backend to be up")
 	}
 }

@@ -53,6 +53,8 @@ func main() {
 	}
 	defer db.Close()
 
+	db.SetMaxIdleConns(100)
+
 	p, err := proxy.New(conf.Backends...)
 	if err != nil {
 		log.Fatalf("proxy error: %v", err)
@@ -122,28 +124,54 @@ func usersHandler(db *user.DB, username, password string) http.HandlerFunc {
 	}, username, password)
 }
 
-var endpoints = map[string]string{
-	"/metrics/find": "query",
-	"/render":       "target",
-	"/info":         "target",
+type filterFunc func(*user.User, *http.Response) ([]byte, error)
+
+var endpoints = map[string]filterFunc{
+	"/metrics/find": filterFind,
+	//"/render":       "target",
+}
+
+// copy from carbonapi
+type treejson struct {
+	AllowChildren int            `json:"allowChildren"`
+	Expandable    int            `json:"expandable"`
+	Leaf          int            `json:"leaf"`
+	ID            string         `json:"id"`
+	Text          string         `json:"text"`
+	Context       map[string]int `json:"context"` // unused
+}
+
+func filterFind(u *user.User, r *http.Response) ([]byte, error) {
+	var tree []*treejson
+	if err := json.NewDecoder(r.Body).Decode(&tree); err != nil {
+		return nil, err
+	}
+
+	res := make([]*treejson, 0, len(tree))
+	for _, leaf := range tree {
+		if u.Can(leaf.ID) {
+			res = append(res, leaf)
+		}
+	}
+	return json.Marshal(res)
 }
 
 // matchRoute matches the named request path to one of
 // supported routes and returns query parameter name or
 // returns an empty string
-func matchRoute(path string) string {
-	for p, param := range endpoints {
+func matchRoute(path string) filterFunc {
+	for p, fn := range endpoints {
 		if strings.HasPrefix(path, p) {
-			return param
+			return fn
 		}
 	}
-	return ""
+	return nil
 }
 
 // ANY /
 func carbonHandler(db *user.DB, p *proxy.Proxy) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if k := matchRoute(r.URL.Path); k != "" {
+		if fn := matchRoute(r.URL.Path); fn != nil {
 			username, password, _ := r.BasicAuth()
 			u, err := db.FindByUsernameAndPassword(username, password)
 			if err == user.ErrInvalidCredentials {
@@ -151,18 +179,27 @@ func carbonHandler(db *user.DB, p *proxy.Proxy) http.HandlerFunc {
 				return
 			}
 
-			// authorize only when the query param is not empty
-			q := r.URL.Query()[k]
-			if len(q) == 1 && len(q[0]) != 0 && !u.CanQuery(q[0]) {
-				httpErrorCode(w, http.StatusUnauthorized)
+			res, err := p.Proxy(r)
+			if err != nil {
+				httpError(w, err)
 				return
 			}
-		}
+			defer res.Body.Close()
 
-		// proxy requests
-		if err := p.Proxy(w, r); err != nil {
-			httpError(w, err)
-			return
+			// filter response
+			b, err := fn(u, res)
+			if err != nil {
+				httpError(w, err)
+				return
+			}
+
+			for k, hh := range res.Header {
+				for _, h := range hh {
+					w.Header().Add(k, h)
+				}
+			}
+			w.WriteHeader(res.StatusCode)
+			w.Write(b)
 		}
 	}
 }

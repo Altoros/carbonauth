@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"errors"
-	"io"
 	"log"
 	"math/rand"
 	"net"
@@ -67,11 +66,11 @@ func New(urls ...string) (*Proxy, error) {
 var ErrNoBackends = errors.New("no backend are availabe")
 
 // ServeHTTP proxies http requests to one of backends using round-robin algorithm
-func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) error {
+func (p *Proxy) Proxy(r *http.Request) (*http.Response, error) {
 	p.mu.RLock()
 	if len(p.backends) == 0 {
 		p.mu.RUnlock()
-		return ErrNoBackends
+		return nil, ErrNoBackends
 	}
 
 	backend := p.backends[rand.Intn(len(p.backends))]
@@ -84,7 +83,7 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) error {
 
 	req, err := http.NewRequest(r.Method, u.String(), r.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// copy headers
@@ -108,21 +107,18 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) error {
 	res, err := p.Client.Do(req)
 	if err != nil {
 		if err == ErrNoBackends {
-			return err
+			return nil, err
 		}
 
 		p.suspend(backend)
-		return p.Proxy(w, r)
+		return p.Proxy(r)
 	}
 
 	for k, _ := range hopHeaders {
 		res.Header.Del(k)
 	}
 
-	w.WriteHeader(res.StatusCode)
-	_, err = io.Copy(w, res.Body)
-	res.Body.Close()
-	return err
+	return res, nil
 }
 
 // suspend temporarily removes u from the backends list
