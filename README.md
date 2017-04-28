@@ -4,13 +4,18 @@ Authorization microservice for the carbon stack with forward proxy / load balanc
 
 Using admin credentials you can manage users and their privileges for accessing underlying carbonapi servers via http basic auth.
 
-### Configuration
+## Compatibility
+
+* `/metrics/find`
+* `/render` only with `format=json`
+
+## Configuration
 
 Copy `config.yml.example` to `config.yml` and adjust configuration values.
 
-### Usage
+## Usage
 
-Create user:
+Create or update user:
 ```
 curl -X POST admin:admin@localhost:8082/users -d '{
   "username": "test",

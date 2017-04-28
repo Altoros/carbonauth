@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/Altoros/carbonauth/proxy"
 	"github.com/Altoros/carbonauth/user"
-	"fmt"
 )
 
 func TestFlow(t *testing.T) {
@@ -24,6 +24,7 @@ func TestFlow(t *testing.T) {
 	}
 	defer db.Clean()
 
+	// emulate carbonapi
 	h := http.NewServeMux()
 	h.HandleFunc("/metrics/find", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "application/json")
