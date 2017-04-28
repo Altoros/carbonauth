@@ -8,12 +8,10 @@ import (
 	"net/http"
 	"strings"
 
-	"io"
-
+	"github.com/Altoros/carbonauth/handler"
 	"github.com/Altoros/carbonauth/proxy"
 	"github.com/Altoros/carbonauth/user"
 	"gopkg.in/yaml.v2"
-	"bytes"
 )
 
 type config struct {
@@ -64,8 +62,8 @@ func main() {
 	}
 
 	mux := http.DefaultServeMux
-	mux.HandleFunc("/users", requestsLogger(usersHandler(db, conf.Auth.Username, conf.Auth.Password)))
-	mux.HandleFunc("/", requestsLogger(carbonHandler(db, p)))
+	mux.HandleFunc("/users", handler.Log(usersHandler(db, conf.Auth.Username, conf.Auth.Password)))
+	mux.HandleFunc("/", handler.Log(carbonHandler(db, p)))
 
 	srv := http.Server{Addr: conf.Address, Handler: mux}
 	if conf.TLS.CertFile != "" && conf.TLS.KeyFile != "" {
@@ -76,67 +74,9 @@ func main() {
 	log.Fatal(srv.ListenAndServe())
 }
 
-// basicAuth wraps h with http basic auth
-func basicAuth(h http.HandlerFunc, username, password string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		u, p, ok := r.BasicAuth()
-		if !ok || (username != u && password != p) {
-			httpErrorCode(w, http.StatusUnauthorized)
-			return
-		}
-		h(w, r)
-	}
-}
-
-type rw struct {
-	http.ResponseWriter
-	r *http.Request
-	b []byte
-}
-
-func (rw *rw) WriteHeader(code int) {
-	rw.ResponseWriter.WriteHeader(code)
-
-	q := rw.r.URL.RawQuery
-	if q != "" {
-		q = "?" + q
-	}
-
-	log.Printf("%s %s%s %d", rw.r.Method, rw.r.URL.Path, q, code)
-	if len(rw.b) > 0 {
-		log.Printf("     %s", rw.b)
-	}
-}
-
-type rb struct {
-	io.ReadCloser
-	io.Reader
-}
-
-func (r *rb) Read(p []byte) (int, error) {
-	return r.Reader.Read(p)
-}
-
-func (r *rb) Close() error {
-	return r.ReadCloser.Close()
-}
-
-func requestsLogger(h http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		b, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			httpError(w, err)
-			return
-		}
-
-		r.Body = &rb{ReadCloser: r.Body, Reader: bytes.NewReader(b)}
-		h(&rw{ResponseWriter: w, r: r, b: b}, r)
-	}
-}
-
 // DELETE POST /users
 func usersHandler(db *user.DB, username, password string) http.HandlerFunc {
-	return basicAuth(func(w http.ResponseWriter, r *http.Request) {
+	return handler.Auth(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodDelete:
 			username, ok := r.URL.Query()["username"]
