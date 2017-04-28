@@ -136,15 +136,15 @@ func (db *DB) Save(u *User) error {
 	return err
 }
 
-// ErrInvalidCredentials returned when user cannot be found
-var ErrInvalidCredentials = errors.New("invalid username or password")
+// ErrNotFound returned when user cannot be found
+var ErrNotFound = errors.New("user not found")
+
+func (db *DB) FindByUsername(username string) (*User, error) {
+	return nil, errors.New("not implemented")
+}
 
 // FindByUsernameAndPassword
 func (db *DB) FindByUsernameAndPassword(username, password string) (*User, error) {
-	if username == "" || password == "" {
-		return nil, ErrInvalidCredentials
-	}
-
 	rows, err := db.query(nil, `
 		SELECT username, password, globs
 		FROM users
@@ -168,7 +168,7 @@ func (db *DB) FindByUsernameAndPassword(username, password string) (*User, error
 
 	// user is not found
 	if u.Username == "" {
-		return nil, ErrInvalidCredentials
+		return nil, ErrNotFound
 	}
 
 	globs, err := unmarshalStringSlice(b)

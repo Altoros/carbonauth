@@ -26,7 +26,7 @@ curl -X POST admin:admin@localhost:8082/users -d '{
 
 Delete user:
 ```
-curl -X DELETE admin:admin@localhost:8082/users?username=test
+curl -X DELETE admin:admin@localhost:8082/users/test
 ```
 
 Querying carbon:

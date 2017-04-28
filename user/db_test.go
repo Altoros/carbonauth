@@ -43,7 +43,7 @@ func TestDB(t *testing.T) {
 	}
 
 	_, err = db.FindByUsernameAndPassword("user", "secret")
-	if err != ErrInvalidCredentials {
-		t.Errorf("err = %v, want %v", err, ErrInvalidCredentials)
+	if err != ErrNotFound {
+		t.Errorf("err = %v, want %v", err, ErrNotFound)
 	}
 }

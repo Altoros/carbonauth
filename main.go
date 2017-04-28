@@ -6,11 +6,11 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strings"
 
-	"github.com/Altoros/carbonauth/handler"
 	"github.com/Altoros/carbonauth/proxy"
 	"github.com/Altoros/carbonauth/user"
+	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
 	"gopkg.in/yaml.v2"
 )
 
@@ -53,7 +53,6 @@ func main() {
 		log.Fatalf("db connect error: %v", err)
 	}
 	defer db.Close()
-
 	db.SetMaxIdleConns(100)
 
 	p, err := proxy.New(conf.Backends...)
@@ -61,67 +60,87 @@ func main() {
 		log.Fatalf("proxy error: %v", err)
 	}
 
-	mux := http.DefaultServeMux
-	mux.HandleFunc("/users", handler.Log(usersHandler(db, conf.Auth.Username, conf.Auth.Password)))
-	mux.HandleFunc("/", handler.Log(carbonHandler(db, p)))
+	e := echo.New()
+	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format: "${time_rfc3339} ${method} ${uri} status=${status} took=${latency_human} bytes=${bytes_in}\n",
+	}))
+	e.Use(middleware.Gzip())
 
-	srv := http.Server{Addr: conf.Address, Handler: mux}
-	if conf.TLS.CertFile != "" && conf.TLS.KeyFile != "" {
-		log.Printf("starting https on %s", conf.Address)
-		log.Fatal(srv.ListenAndServeTLS(conf.TLS.CertFile, conf.TLS.CertFile))
-	}
-	log.Printf("starting http on %s", conf.Address)
-	log.Fatal(srv.ListenAndServe())
-}
+	aa := middleware.BasicAuth(func(username string, password string, _ echo.Context) (error, bool) {
+		return nil, username == conf.Auth.Username && password == conf.Auth.Password
+	})
 
-// DELETE POST /users
-func usersHandler(db *user.DB, username, password string) http.HandlerFunc {
-	return handler.Auth(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodDelete:
-			username, ok := r.URL.Query()["username"]
-			if ok && username[0] != "" {
-				if err := db.Delete(username[0]); err != nil {
-					httpError(w, err)
-					return
-				}
+	e.POST("/users", saveUser(db), aa)
+	e.GET("/users/:username", showUser(db), aa)
+	e.DELETE("/users/:username", deleteUser(db), aa)
+
+	ua := middleware.BasicAuth(func(username string, password string, c echo.Context) (error, bool) {
+		u, err := db.FindByUsernameAndPassword(username, password)
+		if err != nil {
+			if err == user.ErrNotFound {
+				err = nil
 			}
-			w.WriteHeader(http.StatusOK)
-			return
-		case http.MethodPost:
-			u := &user.User{}
-			if err := json.NewDecoder(r.Body).Decode(u); err != nil {
-				httpErrorCode(w, http.StatusBadRequest)
-				return
-			}
-
-			// validate fields
-			if len(u.Username) < 4 || len(u.Password) < 4 || len(u.Globs) == 0 {
-				httpErrorCode(w, http.StatusBadRequest)
-				return
-			}
-
-			if err := db.Save(u); err != nil {
-				httpError(w, err)
-				return
-			}
-
-			w.WriteHeader(http.StatusOK)
-		default:
-			httpErrorCode(w, http.StatusMethodNotAllowed)
+			return err, false
 		}
-	}, username, password)
+
+		c.Set("user", u)
+		return nil, true
+	})
+
+	e.GET("/metrics/find*", carbonHandler(p, filterFind), ua)
+	e.POST("/render", carbonHandler(p, filterRender), ua)
+
+	if conf.TLS.CertFile != "" && conf.TLS.KeyFile != "" {
+		panic(e.StartTLS(conf.Address, conf.TLS.CertFile, conf.TLS.KeyFile))
+	}
+	panic(e.Start(conf.Address))
 }
 
-type filterFunc func(*user.User, *http.Response) ([]byte, error)
-
-var endpoints = map[string]filterFunc{
-	"/metrics/find": filterFind,
-	"/render":       filterRender,
+// GET /users/:username
+func showUser(db *user.DB) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		u, err := db.FindByUsername(c.Param("username"))
+		if err != nil {
+			if err == user.ErrNotFound {
+				err = echo.ErrNotFound
+			}
+			return err
+		}
+		return c.JSON(http.StatusOK, u)
+	}
 }
+
+// POST /users
+func saveUser(db *user.DB) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		var u user.User
+		if err := json.NewDecoder(c.Request().Body).Decode(&u); err != nil {
+			return err
+		}
+
+		// TODO: c.Validate
+		if len(u.Username) < 4 || len(u.Password) < 4 || len(u.Globs) == 0 {
+			return echo.NewHTTPError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
+		}
+
+		if err := db.Save(&u); err != nil {
+			return err
+		}
+		return c.NoContent(http.StatusOK)
+	}
+}
+
+// DELETE /users
+func deleteUser(db *user.DB) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		return db.Delete(c.Param("username"))
+	}
+}
+
+type filterFunc func(*user.User, *http.Response) ([]json.RawMessage, error)
 
 // response json format: ["id": "...", ...}, ...]
-func filterFind(u *user.User, r *http.Response) ([]byte, error) {
+func filterFind(u *user.User, r *http.Response) ([]json.RawMessage, error) {
 	metrics := []json.RawMessage{}
 	if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
 		return nil, err
@@ -142,11 +161,11 @@ func filterFind(u *user.User, r *http.Response) ([]byte, error) {
 		}
 		result = append(result, metric)
 	}
-	return json.Marshal(result)
+	return result, nil
 }
 
 // response json format: [{"target": "...", ...}, ...]
-func filterRender(u *user.User, r *http.Response) ([]byte, error) {
+func filterRender(u *user.User, r *http.Response) ([]json.RawMessage, error) {
 	metrics := []json.RawMessage{}
 	if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
 		return nil, err
@@ -167,71 +186,34 @@ func filterRender(u *user.User, r *http.Response) ([]byte, error) {
 		}
 		result = append(result, metric)
 	}
-	return json.Marshal(result)
-}
-
-// matchRoute matches the named request path to its
-// carbonapi response filter function or returns nil
-func matchRoute(path string) filterFunc {
-	for p, fn := range endpoints {
-		if strings.HasPrefix(path, p) {
-			return fn
-		}
-	}
-	return nil
+	return result, nil
 }
 
 // ANY /
-func carbonHandler(db *user.DB, p *proxy.Proxy) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		username, password, _ := r.BasicAuth()
-		u, err := db.FindByUsernameAndPassword(username, password)
-		if err == user.ErrInvalidCredentials {
-			httpErrorCode(w, http.StatusUnauthorized)
-			return
-		}
-
-		res, err := p.Proxy(r)
+func carbonHandler(p *proxy.Proxy, fn filterFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		u := c.Get("user").(*user.User)
+		r, err := p.Proxy(c.Request())
 		if err != nil {
-			httpError(w, err)
-			return
+			return err
 		}
-		defer res.Body.Close()
+		defer r.Body.Close()
 
-		if res.Header.Get("Content-Type") != "application/json" {
-			httpErrorCode(w, http.StatusMethodNotAllowed)
-			return
-		}
-
-		// routing
-		fn := matchRoute(r.URL.Path)
-		if fn == nil {
-			httpErrorCode(w, http.StatusNotFound)
-			return
+		if r.Header.Get("Content-Type") != "application/json" {
+			return echo.ErrMethodNotAllowed
 		}
 
 		// filter response when needed
-		b, err := fn(u, res)
+		v, err := fn(u, r)
 		if err != nil {
-			httpError(w, err)
-			return
+			return err
 		}
 
-		for k, hh := range res.Header {
+		for k, hh := range r.Header {
 			for _, h := range hh {
-				w.Header().Add(k, h)
+				c.Response().Header().Add(k, h)
 			}
 		}
-		w.WriteHeader(res.StatusCode)
-		w.Write(b)
+		return c.JSON(r.StatusCode, v)
 	}
-}
-
-func httpError(w http.ResponseWriter, err error) {
-	log.Printf("error: %v", err)
-	httpErrorCode(w, http.StatusInternalServerError)
-}
-
-func httpErrorCode(w http.ResponseWriter, code int) {
-	http.Error(w, http.StatusText(code), code)
 }
