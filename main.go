@@ -131,6 +131,7 @@ var endpoints = map[string]filterFunc{
 	"/render":       filterRender,
 }
 
+// response json format: [{"id": "...", ...}, ...]
 func filterFind(u *user.User, r *http.Response) ([]byte, error) {
 	metrics := []json.RawMessage{}
 	if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
@@ -155,6 +156,7 @@ func filterFind(u *user.User, r *http.Response) ([]byte, error) {
 	return json.Marshal(metrics)
 }
 
+// response json format: [{"target": "...", ...}, ...]
 func filterRender(u *user.User, r *http.Response) ([]byte, error) {
 	metrics := []json.RawMessage{}
 	if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
@@ -206,6 +208,11 @@ func carbonHandler(db *user.DB, p *proxy.Proxy) http.HandlerFunc {
 			return
 		}
 		defer res.Body.Close()
+
+		if res.Header.Get("Content-Type") != "application/json" {
+			httpErrorCode(w, http.StatusMethodNotAllowed)
+			return
+		}
 
 		// routing
 		fn := matchRoute(r.URL.Path)
