@@ -61,8 +61,8 @@ func main() {
 	}
 
 	mux := http.DefaultServeMux
-	mux.HandleFunc("/users", usersHandler(db, conf.Auth.Username, conf.Auth.Password))
-	mux.HandleFunc("/", carbonHandler(db, p))
+	mux.HandleFunc("/users", requestsLogger(usersHandler(db, conf.Auth.Username, conf.Auth.Password)))
+	mux.HandleFunc("/", requestsLogger(carbonHandler(db, p)))
 
 	srv := http.Server{Addr: conf.Address, Handler: mux}
 	if conf.TLS.CertFile != "" && conf.TLS.KeyFile != "" {
@@ -82,6 +82,22 @@ func basicAuth(h http.HandlerFunc, username, password string) http.HandlerFunc {
 			return
 		}
 		h(w, r)
+	}
+}
+
+type rw struct {
+	http.ResponseWriter
+	r *http.Request
+}
+
+func (rw *rw) WriteHeader(code int) {
+	rw.ResponseWriter.WriteHeader(code)
+	log.Printf("%s %s%s %d", rw.r.Method, rw.r.URL.Path, rw.r.URL.RawQuery, code)
+}
+
+func requestsLogger(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		h(&rw{w, r}, r)
 	}
 }
 
@@ -195,8 +211,6 @@ func matchRoute(path string) filterFunc {
 // ANY /
 func carbonHandler(db *user.DB, p *proxy.Proxy) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("%s %s%s", r.Method, r.URL.Path, r.URL.RawQuery)
-
 		username, password, _ := r.BasicAuth()
 		u, err := db.FindByUsernameAndPassword(username, password)
 		if err == user.ErrInvalidCredentials {
