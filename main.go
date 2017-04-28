@@ -131,7 +131,7 @@ var endpoints = map[string]filterFunc{
 	"/render":       filterRender,
 }
 
-// response json format: [{"id": "...", ...}, ...]
+// response json format: ["id": "...", ...}, ...]
 func filterFind(u *user.User, r *http.Response) ([]byte, error) {
 	metrics := []json.RawMessage{}
 	if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
@@ -153,7 +153,7 @@ func filterFind(u *user.User, r *http.Response) ([]byte, error) {
 		}
 		result = append(result, metric)
 	}
-	return json.Marshal(metrics)
+	return json.Marshal(result)
 }
 
 // response json format: [{"target": "...", ...}, ...]
@@ -178,7 +178,7 @@ func filterRender(u *user.User, r *http.Response) ([]byte, error) {
 		}
 		result = append(result, metric)
 	}
-	return json.Marshal(metrics)
+	return json.Marshal(result)
 }
 
 // matchRoute matches the named request path to its

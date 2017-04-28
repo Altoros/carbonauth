@@ -9,6 +9,7 @@ import (
 
 	"github.com/Altoros/carbonauth/proxy"
 	"github.com/Altoros/carbonauth/user"
+	"fmt"
 )
 
 func TestFlow(t *testing.T) {
@@ -24,9 +25,10 @@ func TestFlow(t *testing.T) {
 	defer db.Clean()
 
 	h := http.NewServeMux()
-	h.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	h.HandleFunc("/metrics/find", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`[]`))
+		w.Write([]byte(`[{"id": "foo.bar.baz"}, {"id": "bar.baz"}]`))
 	})
 
 	b := httptest.NewServer(h)
@@ -53,10 +55,12 @@ func TestFlow(t *testing.T) {
 	}
 
 	w = httptest.NewRecorder()
-	r = httptest.NewRequest("GET", "/metrics/find?query=foo.bar.*", nil)
+	r = httptest.NewRequest("GET", "/metrics/find?query=foo.*", nil)
 	r.SetBasicAuth("user", "secret")
 	ch.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
 		t.Errorf("carbonapi request code = %d, want %d", w.Code, http.StatusOK)
 	}
+
+	fmt.Println(w.Body.String())
 }
