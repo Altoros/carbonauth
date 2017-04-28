@@ -61,6 +61,7 @@ func main() {
 	}
 
 	e := echo.New()
+	e.Use(middleware.RemoveTrailingSlash())
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format: "${time_rfc3339} ${method} ${uri} status=${status} took=${latency_human} bytes=${bytes_in}\n",
 	}))
@@ -83,12 +84,13 @@ func main() {
 			return err, false
 		}
 
-		c.Set("user", u)
+		// save user in the context
+		c.Set(userKey, u)
 		return nil, true
 	})
 
 	e.GET("/metrics/find*", carbonHandler(p, filterFind), ua)
-	e.POST("/render", carbonHandler(p, filterRender), ua)
+	e.POST("/render*", carbonHandler(p, filterRender), ua)
 
 	if conf.TLS.CertFile != "" && conf.TLS.KeyFile != "" {
 		panic(e.StartTLS(conf.Address, conf.TLS.CertFile, conf.TLS.KeyFile))
@@ -130,7 +132,7 @@ func saveUser(db *user.DB) echo.HandlerFunc {
 	}
 }
 
-// DELETE /users
+// DELETE /users/:username
 func deleteUser(db *user.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		return db.Delete(c.Param("username"))
@@ -189,10 +191,13 @@ func filterRender(u *user.User, r *http.Response) ([]json.RawMessage, error) {
 	return result, nil
 }
 
-// ANY /
+const userKey = "user"
+
+// GET /metrics/find*
+// POST /render*
 func carbonHandler(p *proxy.Proxy, fn filterFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		u := c.Get("user").(*user.User)
+		u := c.Get(userKey).(*user.User)
 		r, err := p.Proxy(c.Request())
 		if err != nil {
 			return err
