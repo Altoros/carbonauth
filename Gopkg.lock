@@ -1,10 +1,76 @@
-memo = "bc132741f26a5aec5c38d53f891d8bfcd7dd338c8c14ad7eb10a4a3dbd489460"
+memo = "61d33e6b141b9df779ddc2fd1ab4a817095b42d9274cf1b82df94fff83c8547f"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/cznic/cc"
+  packages = ["."]
+  revision = "2c4bf87eb2590a8f395f0c51ec74d2bc7fc843be"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/cznic/ccir"
+  packages = [".","libc/errno","libc/fcntl","libc/pthread","libc/stdio","libc/unistd"]
+  revision = "7f54e4b51d3f3955307fc046efb690d4fbb88f12"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/cznic/golex"
+  packages = ["lex"]
+  revision = "d7f6f2b7a35fa282b3d64161aefe00efb3d56d14"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/cznic/internal"
+  packages = ["buffer","slice"]
+  revision = "e5e1c3e9165d0a72507c2bbb0ffac1c02b8d3f7c"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/cznic/ir"
+  packages = ["."]
+  revision = "7e891126d6f92edac356fb19740cbe48a4b2a8ea"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/cznic/mathutil"
+  packages = ["."]
+  revision = "1447ad269d64ca91aa8d7079baa40b6fc8b965e7"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/cznic/sqlite"
+  packages = [".","internal/bin"]
+  revision = "ced002fb38484376c1bc85a2cf1911e2a1aebaef"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/cznic/strutil"
+  packages = ["."]
+  revision = "43a89592ed56c227c7fdb1fcaf7d1d08be02ec54"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/cznic/virtual"
+  packages = ["."]
+  revision = "0486256b3e75c12ba21ef52b7cc66eb5749e22a9"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/cznic/xc"
+  packages = ["."]
+  revision = "056465bb2be50ec239d754187e1cccbe1b940aa6"
 
 [[projects]]
   name = "github.com/dgrijalva/jwt-go"
   packages = ["."]
   revision = "d2709f9f1f31ebcda9651b03077758c1f3a0018c"
   version = "v3.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/edsrzf/mmap-go"
+  packages = ["."]
+  revision = "0bce6a6887123b67a60366d2c9fe2dfb74289d2e"
 
 [[projects]]
   name = "github.com/go-sql-driver/mysql"
@@ -43,12 +109,6 @@ memo = "bc132741f26a5aec5c38d53f891d8bfcd7dd338c8c14ad7eb10a4a3dbd489460"
   version = "v0.0.2"
 
 [[projects]]
-  name = "github.com/mattn/go-sqlite3"
-  packages = ["."]
-  revision = "ca5e3819723d8eeaf170ad510e7da1d6d2e94a08"
-  version = "v1.2.0"
-
-[[projects]]
   branch = "master"
   name = "github.com/valyala/bytebufferpool"
   packages = ["."]
@@ -65,12 +125,6 @@ memo = "bc132741f26a5aec5c38d53f891d8bfcd7dd338c8c14ad7eb10a4a3dbd489460"
   name = "golang.org/x/crypto"
   packages = ["acme","acme/autocert"]
   revision = "c7af5bf2638a1164f2eb5467c39c6cffbd13a02e"
-
-[[projects]]
-  branch = "master"
-  name = "golang.org/x/net"
-  packages = ["context"]
-  revision = "da118f7b8e5954f39d0d2130ab35d4bf0e3cb344"
 
 [[projects]]
   branch = "master"

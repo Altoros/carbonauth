@@ -52,5 +52,13 @@
 
 
 [[dependencies]]
+  name = "github.com/cznic/internal"
+  revision = "e5e1c3e9165d0a72507c2bbb0ffac1c02b8d3f7c"
+
+[[dependencies]]
+  branch = "master"
+  name = "github.com/cznic/sqlite"
+
+[[dependencies]]
   branch = "v2"
   name = "gopkg.in/yaml.v2"
