@@ -62,7 +62,8 @@ func main() {
 	}
 
 	e := echo.New()
-	e.Use(middleware.AddTrailingSlash())
+	e.Debug = true
+	//e.Use(middleware.AddTrailingSlash())
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format: "${time_rfc3339} ${method} ${uri} status=${status} took=${latency_human} len=${bytes_out}\n",
 	}))
@@ -207,27 +208,32 @@ const userKey = "user"
 func carbonHandler(p *proxy.Proxy, fn filterFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		u := c.Get(userKey).(*user.User)
-		r, err := p.Proxy(c.Request())
+		res, err := p.Proxy(c.Request())
 		if err != nil {
 			return err
 		}
-		defer r.Body.Close()
+		defer res.Body.Close()
 
-		if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-			return echo.ErrMethodNotAllowed
-		}
-
-		// filter response when needed
-		v, err := fn(u, r)
-		if err != nil {
-			return err
-		}
-
-		for k, hh := range r.Header {
+		// copy response headers
+		for k, hh := range res.Header {
 			for _, h := range hh {
 				c.Response().Header().Add(k, h)
 			}
 		}
-		return c.JSON(r.StatusCode, v)
+
+		if res.StatusCode != http.StatusOK {
+			return c.Stream(res.StatusCode, res.Header.Get("Content-Type"), res.Body)
+		}
+
+		if !strings.HasPrefix(res.Header.Get("Content-Type"), "application/json") {
+			return echo.ErrMethodNotAllowed
+		}
+
+		// filter response when needed
+		v, err := fn(u, res)
+		if err != nil {
+			return err
+		}
+		return c.JSON(res.StatusCode, v)
 	}
 }

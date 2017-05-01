@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -110,7 +112,10 @@ func TestProxy_ProxyGzip(t *testing.T) {
 		gz.Close()
 	})
 
-	p, err := New(httptest.NewServer(m).URL)
+	s := httptest.NewServer(m)
+	defer s.Close()
+
+	p, err := New(s.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,6 +130,40 @@ func TestProxy_ProxyGzip(t *testing.T) {
 	got := bodyString(b)
 	if got != "gzip" {
 		t.Errorf("gzip request body = %q, want = %q", got, "gzip")
+	}
+}
+
+func TestProxy_Form(t *testing.T) {
+	t.Parallel()
+
+	m := http.NewServeMux()
+	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Errorf("ParseForm() = %v", err)
+		}
+
+		if !reflect.DeepEqual(r.Form["foo"], []string{"bar"}) {
+			t.Errorf(`Form["foo"] = %v, want %v`, r.Form["foo"], []string{"bar"})
+		}
+	})
+
+	s := httptest.NewServer(m)
+	defer s.Close()
+
+	p, err := New(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f := url.Values{}
+	f.Set("foo", "bar")
+
+	r := httptest.NewRequest(http.MethodPost, "/post2", strings.NewReader(f.Encode()))
+	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	_, err = p.Proxy(r)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

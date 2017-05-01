@@ -93,7 +93,6 @@ func (p *Proxy) Proxy(r *http.Request) (*http.Response, error) {
 		if hopHeaders[k] {
 			continue
 		}
-
 		for _, h := range hh {
 			req.Header.Add(k, h)
 		}
@@ -118,7 +117,7 @@ func (p *Proxy) Proxy(r *http.Request) (*http.Response, error) {
 			return nil, err
 		}
 
-		p.suspend(backend)
+		p.suspend(backend, err)
 		return p.Proxy(r)
 	}
 
@@ -152,7 +151,7 @@ func (gz *gzr) Close() error {
 }
 
 // suspend temporarily removes u from the backends list
-func (p *Proxy) suspend(u *url.URL) {
+func (p *Proxy) suspend(u *url.URL, err error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -171,7 +170,7 @@ func (p *Proxy) suspend(u *url.URL) {
 		return
 	}
 
-	log.Printf("proxy: %s suspended", u)
+	log.Printf("proxy: %s suspended, err=%v", u, err)
 	go func() {
 		d := p.SuspendTime
 		if d == 0 {

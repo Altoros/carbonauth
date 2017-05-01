@@ -4,6 +4,8 @@ Authorization microservice for the carbon stack with forward proxy / load balanc
 
 Using admin credentials you can manage users and their privileges for accessing underlying carbonapi servers via http basic auth.
 
+Developed and tested as an additional layer between [grafana](https://github.com/grafana/grafana) and [carbonapi](https://github.com/go-graphite/carbonapi).
+
 ## Compatibility
 
 * `/metrics/find`
