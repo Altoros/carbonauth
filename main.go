@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/Altoros/carbonauth/proxy"
 	"github.com/Altoros/carbonauth/user"
@@ -61,17 +62,19 @@ func main() {
 	}
 
 	e := echo.New()
-	e.Use(middleware.RemoveTrailingSlash())
+	e.Use(middleware.AddTrailingSlash())
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: "${time_rfc3339} ${method} ${uri} status=${status} took=${latency_human} bytes=${bytes_in}\n",
+		Format: "${time_rfc3339} ${method} ${uri} status=${status} took=${latency_human} len=${bytes_out}\n",
 	}))
 	e.Use(middleware.Gzip())
 
+	// users management
 	g := e.Group("/users", authAdmin(conf.Auth.Username, conf.Auth.Password))
-	g.POST("", saveUser(db))
-	g.GET("/:username", showUser(db))
-	g.DELETE("/:username", deleteUser(db))
+	g.POST("/", saveUser(db))
+	g.GET("/:username/", showUser(db))
+	g.DELETE("/:username/", deleteUser(db))
 
+	// proxy section
 	a := authUser(db)
 	e.GET("/metrics/find*", carbonHandler(p, filterFind), a)
 	e.POST("/render*", carbonHandler(p, filterRender), a)
@@ -210,7 +213,7 @@ func carbonHandler(p *proxy.Proxy, fn filterFunc) echo.HandlerFunc {
 		}
 		defer r.Body.Close()
 
-		if r.Header.Get("Content-Type") != "application/json" {
+		if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 			return echo.ErrMethodNotAllowed
 		}
 

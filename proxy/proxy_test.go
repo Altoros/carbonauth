@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"compress/gzip"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -93,6 +94,37 @@ func TestProxy_Proxy(t *testing.T) {
 
 	if bodyString(b) != "one" {
 		t.Error("want fist backend to be up")
+	}
+}
+
+func TestProxy_ProxyGzip(t *testing.T) {
+	t.Parallel()
+
+	m := http.NewServeMux()
+	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		w.WriteHeader(http.StatusOK)
+
+		gz := gzip.NewWriter(w)
+		gz.Write([]byte("gzip"))
+		gz.Close()
+	})
+
+	p, err := New(httptest.NewServer(m).URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := httptest.NewRequest(http.MethodGet, "/asd", nil)
+	r.Header.Set("Accept-Encoding", "gzip, deflate")
+	b, err := p.Proxy(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := bodyString(b)
+	if got != "gzip" {
+		t.Errorf("gzip request body = %q, want = %q", got, "gzip")
 	}
 }
 
