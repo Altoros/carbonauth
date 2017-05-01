@@ -67,15 +67,29 @@ func main() {
 	}))
 	e.Use(middleware.Gzip())
 
-	aa := middleware.BasicAuth(func(username string, password string, _ echo.Context) (error, bool) {
-		return nil, username == conf.Auth.Username && password == conf.Auth.Password
+	g := e.Group("/users", authAdmin(conf.Auth.Username, conf.Auth.Password))
+	g.POST("", saveUser(db))
+	g.GET("/:username", showUser(db))
+	g.DELETE("/:username", deleteUser(db))
+
+	a := authUser(db)
+	e.GET("/metrics/find*", carbonHandler(p, filterFind), a)
+	e.POST("/render*", carbonHandler(p, filterRender), a)
+
+	if conf.TLS.CertFile != "" && conf.TLS.KeyFile != "" {
+		panic(e.StartTLS(conf.Address, conf.TLS.CertFile, conf.TLS.KeyFile))
+	}
+	panic(e.Start(conf.Address))
+}
+
+func authAdmin(username, password string) echo.MiddlewareFunc {
+	return middleware.BasicAuth(func(u string, p string, _ echo.Context) (error, bool) {
+		return nil, username == u && password == p
 	})
+}
 
-	e.POST("/users", saveUser(db), aa)
-	e.GET("/users/:username", showUser(db), aa)
-	e.DELETE("/users/:username", deleteUser(db), aa)
-
-	ua := middleware.BasicAuth(func(username string, password string, c echo.Context) (error, bool) {
+func authUser(db *user.DB) echo.MiddlewareFunc {
+	return middleware.BasicAuth(func(username string, password string, c echo.Context) (error, bool) {
 		u, err := db.FindByUsernameAndPassword(username, password)
 		if err != nil {
 			if err == user.ErrNotFound {
@@ -88,14 +102,6 @@ func main() {
 		c.Set(userKey, u)
 		return nil, true
 	})
-
-	e.GET("/metrics/find*", carbonHandler(p, filterFind), ua)
-	e.POST("/render*", carbonHandler(p, filterRender), ua)
-
-	if conf.TLS.CertFile != "" && conf.TLS.KeyFile != "" {
-		panic(e.StartTLS(conf.Address, conf.TLS.CertFile, conf.TLS.KeyFile))
-	}
-	panic(e.Start(conf.Address))
 }
 
 // GET /users/:username

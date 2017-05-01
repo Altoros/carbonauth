@@ -9,6 +9,7 @@ import (
 
 	"github.com/Altoros/carbonauth/proxy"
 	"github.com/Altoros/carbonauth/user"
+	"github.com/labstack/echo"
 )
 
 func TestFlow(t *testing.T) {
@@ -17,6 +18,8 @@ func TestFlow(t *testing.T) {
 		databaseURL = "sqlite3://:memory:"
 	}
 
+	e := echo.New()
+
 	db, err := user.Open(databaseURL, "seasalt")
 	if err != nil {
 		t.Fatal(err)
@@ -24,8 +27,8 @@ func TestFlow(t *testing.T) {
 	defer db.Clean()
 
 	// emulate carbonapi
-	h := http.NewServeMux()
-	h.HandleFunc("/metrics/find", func(w http.ResponseWriter, r *http.Request) {
+	c := http.NewServeMux()
+	c.HandleFunc("/metrics/find", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`[
@@ -33,7 +36,7 @@ func TestFlow(t *testing.T) {
 			{"id": "bar.baz.bam", "isLeaf": 0}
 		]`))
 	})
-	h.HandleFunc("/render", func(w http.ResponseWriter, r *http.Request) {
+	c.HandleFunc("/render", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`[
@@ -42,16 +45,13 @@ func TestFlow(t *testing.T) {
 		}]`))
 	})
 
-	b := httptest.NewServer(h)
+	b := httptest.NewServer(c)
 	defer b.Close()
 
 	p, err := proxy.New(b.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	uh := usersHandler(db, "admin", "secret")
-	ch := carbonHandler(db, p)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/users", strings.NewReader(`{
@@ -60,25 +60,40 @@ func TestFlow(t *testing.T) {
 		"globs":    ["foo.*", "bar.baz"]
 	}`))
 	r.SetBasicAuth("admin", "secret")
-	uh.ServeHTTP(w, r)
-	if w.Code != http.StatusOK {
-		t.Errorf("create user code = %d, want %d", w.Code, http.StatusOK)
+
+	h := authAdmin("admin", "secret")(saveUser(db))
+	if err := h(e.NewContext(r, w)); err != nil {
+		t.Errorf("POST /user err = %v", err)
 	}
 
-	for url, body := range map[string]string{
-		"/metrics/find?query=foo.*":        `[{"id":"foo.bar.baz","isLeaf":1}]`,
-		"/render?target=foo.*&format=json": `[{"target":"foo.*","datapoints":[[1,0]]}]`,
+	for url, d := range map[string]struct {
+		fn     filterFunc
+		want   string
+		method string
+	}{
+		"/metrics/find?query=foo.*": {
+			fn:     filterFind,
+			want:   `[{"id":"foo.bar.baz","isLeaf":1}]`,
+			method: http.MethodGet,
+		},
+		"/render?target=foo.*&format=json": {
+			fn:     filterRender,
+			want:   `[{"target":"foo.*","datapoints":[[1,0]]}]`,
+			method: http.MethodPost,
+		},
 	} {
 		t.Run(url, func(t *testing.T) {
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest("GET", url, nil)
+			r := httptest.NewRequest(d.method, url, nil)
 			r.SetBasicAuth("user", "secret")
-			ch.ServeHTTP(w, r)
 
-			if w.Code != http.StatusOK {
-				t.Errorf("GET %s code = %d, want %d", url, w.Code, http.StatusOK)
-			} else if w.Body.String() != body {
-				t.Errorf("GET %s body = %q, want %q", url, w.Body.String(), body)
+			h := authUser(db)(carbonHandler(p, d.fn))
+			if err := h(e.NewContext(r, w)); err != nil {
+				t.Errorf("GET %s err = %v", url, err)
+			}
+
+			if w.Body.String() != d.want {
+				t.Errorf("GET %s body = %q, want %q", url, w.Body.String(), d.want)
 			}
 		})
 	}
