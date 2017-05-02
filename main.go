@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"io/ioutil"
 	"log"
@@ -208,8 +207,6 @@ const userKey = "user"
 // POST /render*
 func carbonHandler(p *proxy.Proxy, fn filterFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		return errors.New("adsafdssa")
-
 		u := c.Get(userKey).(*user.User)
 		res, err := p.Proxy(c.Request())
 		if err != nil {

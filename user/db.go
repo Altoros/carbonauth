@@ -85,9 +85,10 @@ func (db *DB) query(tx *sql.Tx, q string, v ...interface{}) (*sql.Rows, error) {
 func (db *DB) prep(q string) string {
 	switch db.Driver().(type) {
 	case *mysql.MySQLDriver, *sqlite.Driver:
-		q = placeholderRegexp.ReplaceAllString(q, "?")
+		return placeholderRegexp.ReplaceAllString(q, "?")
+	default:
+		return q
 	}
-	return q
 }
 
 // Clean closes db connection and drops all tables
