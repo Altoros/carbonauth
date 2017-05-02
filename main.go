@@ -65,9 +65,9 @@ func main() {
 	e := echo.New()
 	e.Debug = true
 	e.Logger.SetLevel(glog.DEBUG)
-	e.Use(middleware.Logger())
-	e.Use(middleware.Gzip())
-	e.Use(middleware.AddTrailingSlash())
+	e.Pre(middleware.Logger())
+	e.Pre(middleware.Gzip())
+	e.Pre(middleware.AddTrailingSlash())
 
 	// users management
 	g := e.Group("/users", authAdmin(conf.Auth.Username, conf.Auth.Password))
