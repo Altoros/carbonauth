@@ -84,9 +84,7 @@ func (db *DB) query(tx *sql.Tx, q string, v ...interface{}) (*sql.Rows, error) {
 // it replaces postgres $ placeholders with ?
 func (db *DB) prep(q string) string {
 	switch db.Driver().(type) {
-	case *mysql.MySQLDriver:
-		fallthrough
-	case *sqlite.Driver:
+	case *mysql.MySQLDriver, *sqlite.Driver:
 		q = placeholderRegexp.ReplaceAllString(q, "?")
 	}
 	return q
