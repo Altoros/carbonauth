@@ -85,6 +85,7 @@ func (db *DB) query(tx *sql.Tx, q string, v ...interface{}) (*sql.Rows, error) {
 func (db *DB) prep(q string) string {
 	switch db.Driver().(type) {
 	case *mysql.MySQLDriver:
+		fallthrough
 	case *sqlite.Driver:
 		q = placeholderRegexp.ReplaceAllString(q, "?")
 	}
