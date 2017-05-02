@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"io/ioutil"
 	"log"
@@ -12,6 +13,7 @@ import (
 	"github.com/Altoros/carbonauth/user"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
+	glog "github.com/labstack/gommon/log"
 	"gopkg.in/yaml.v2"
 )
 
@@ -63,11 +65,10 @@ func main() {
 
 	e := echo.New()
 	e.Debug = true
+	e.Logger.SetLevel(glog.DEBUG)
+	e.Use(middleware.Logger())
 	//e.Use(middleware.AddTrailingSlash())
-	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: "${time_rfc3339} ${method} ${uri} status=${status} took=${latency_human} len=${bytes_out}\n",
-	}))
-	e.Use(middleware.Gzip())
+	//e.Use(middleware.Gzip())
 
 	// users management
 	g := e.Group("/users", authAdmin(conf.Auth.Username, conf.Auth.Password))
@@ -207,6 +208,8 @@ const userKey = "user"
 // POST /render*
 func carbonHandler(p *proxy.Proxy, fn filterFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		return errors.New("adsafdssa")
+
 		u := c.Get(userKey).(*user.User)
 		res, err := p.Proxy(c.Request())
 		if err != nil {
