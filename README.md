@@ -26,6 +26,11 @@ $ curl admin:secret@localhost:8082/users -d '{
 }'
 ```
 
+List users:
+```
+$ curl admin:secret@localhost:8082/users
+```
+
 Find user:
 ```
 $ curl admin:secret@localhost:8082/users/test
