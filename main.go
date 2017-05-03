@@ -118,6 +118,8 @@ func showUser(db *user.DB) echo.HandlerFunc {
 			}
 			return err
 		}
+
+		u.Password = ""
 		return c.JSON(http.StatusOK, u)
 	}
 }
@@ -138,6 +140,8 @@ func saveUser(db *user.DB) echo.HandlerFunc {
 		if err := db.Save(&u); err != nil {
 			return err
 		}
+
+		u.Password = ""
 		return c.JSON(http.StatusOK, &u)
 	}
 }
