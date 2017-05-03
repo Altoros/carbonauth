@@ -71,6 +71,7 @@ func main() {
 
 	// users management
 	g := e.Group("/users", authAdmin(conf.Auth.Username, conf.Auth.Password))
+	g.GET("/", listUsers(db))
 	g.POST("/", saveUser(db))
 	g.GET("/:username/", showUser(db))
 	g.DELETE("/:username/", deleteUser(db))
@@ -106,6 +107,22 @@ func authUser(db *user.DB) echo.MiddlewareFunc {
 		c.Set(userKey, u)
 		return nil, true
 	})
+}
+
+// GET /users
+func listUsers(db *user.DB) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		uu, err := db.List()
+		if err != nil {
+			return err
+		}
+
+		// hide passwords
+		for _, u := range uu {
+			u.Password = ""
+		}
+		return c.JSON(http.StatusOK, uu)
+	}
 }
 
 // GET /users/:username

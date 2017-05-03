@@ -143,6 +143,28 @@ func (db *DB) Save(u *User) error {
 // ErrNotFound returned when user cannot be found
 var ErrNotFound = errors.New("user not found")
 
+// List is list of users
+func (db DB) List() ([]*User, error) {
+	rows, err := db.query(nil, `
+		SELECT username, password, globs
+		FROM users`)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var uu []*User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		uu = append(uu, u)
+	}
+	return uu, nil
+}
+
 // FindByUsername finds user by user name or returns ErrNotFound
 func (db DB) FindByUsername(username string) (*User, error) {
 	rows, err := db.query(nil, `
@@ -160,10 +182,13 @@ func (db DB) FindByUsername(username string) (*User, error) {
 	if !rows.Next() {
 		return nil, ErrNotFound
 	}
+	return scanUser(rows)
+}
 
+func scanUser(rows *sql.Rows) (*User, error) {
 	var u User
 	var b []byte
-	if err = rows.Scan(&u.Username, &u.Password, &b); err != nil {
+	if err := rows.Scan(&u.Username, &u.Password, &b); err != nil {
 		return nil, err
 	}
 
