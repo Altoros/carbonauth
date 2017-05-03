@@ -185,6 +185,24 @@ func (db DB) FindByUsername(username string) (*User, error) {
 	return scanUser(rows)
 }
 
+// FindByUsernameAndPassword
+func (db *DB) FindByUsernameAndPassword(username, password string) (*User, error) {
+	rows, err := db.query(nil, `
+		SELECT username, password, globs
+		FROM users
+		WHERE username = $1
+		AND password = $2
+		LIMIT 1
+	`, username, hash(password, db.salt))
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanUser(rows)
+}
+
 func scanUser(rows *sql.Rows) (*User, error) {
 	var u User
 	var b []byte
@@ -199,20 +217,6 @@ func scanUser(rows *sql.Rows) (*User, error) {
 	u.Globs = globs
 
 	return &u, nil
-}
-
-// FindByUsernameAndPassword
-func (db *DB) FindByUsernameAndPassword(username, password string) (*User, error) {
-	u, err := db.FindByUsername(username)
-	if err != nil {
-		return nil, err
-	}
-
-	if u.Password != hash(password, db.salt) {
-		return nil, ErrNotFound
-	}
-
-	return u, nil
 }
 
 // UserDelete deletes the named user
