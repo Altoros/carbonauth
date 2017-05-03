@@ -143,36 +143,28 @@ func (db *DB) Save(u *User) error {
 // ErrNotFound returned when user cannot be found
 var ErrNotFound = errors.New("user not found")
 
-func (db *DB) FindByUsername(username string) (*User, error) {
-	return nil, errors.New("not implemented")
-}
-
-// FindByUsernameAndPassword
-func (db *DB) FindByUsernameAndPassword(username, password string) (*User, error) {
+// FindByUsername finds user by user name or returns ErrNotFound
+func (db DB) FindByUsername(username string) (*User, error) {
 	rows, err := db.query(nil, `
 		SELECT username, password, globs
 		FROM users
 		WHERE username = $1
-			AND password = $2
 		LIMIT 1
-	`, username, hash(password, db.salt))
+	`, username)
 
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var u User
-	var b []byte
-	for rows.Next() {
-		if err = rows.Scan(&u.Username, &u.Password, &b); err != nil {
-			return nil, err
-		}
+	if !rows.Next() {
+		return nil, ErrNotFound
 	}
 
-	// user is not found
-	if u.Username == "" {
-		return nil, ErrNotFound
+	var u User
+	var b []byte
+	if err = rows.Scan(&u.Username, &u.Password, &b); err != nil {
+		return nil, err
 	}
 
 	globs, err := unmarshalStringSlice(b)
@@ -182,6 +174,20 @@ func (db *DB) FindByUsernameAndPassword(username, password string) (*User, error
 	u.Globs = globs
 
 	return &u, nil
+}
+
+// FindByUsernameAndPassword
+func (db *DB) FindByUsernameAndPassword(username, password string) (*User, error) {
+	u, err := db.FindByUsername(username)
+	if err != nil {
+		return nil, err
+	}
+
+	if u.Password != hash(password, db.salt) {
+		return nil, ErrNotFound
+	}
+
+	return u, nil
 }
 
 // UserDelete deletes the named user

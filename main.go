@@ -138,7 +138,7 @@ func saveUser(db *user.DB) echo.HandlerFunc {
 		if err := db.Save(&u); err != nil {
 			return err
 		}
-		return c.NoContent(http.StatusOK)
+		return c.JSON(http.StatusOK, &u)
 	}
 }
 

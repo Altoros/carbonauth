@@ -19,19 +19,24 @@ Copy `config.yml.example` to `config.yml` and adjust configuration values.
 
 Create or update user:
 ```
-curl -X POST admin:admin@localhost:8082/users -d '{
+$ curl admin:secret@localhost:8082/users -d '{
   "username": "test",
   "password": "secret",
   "globs":    ["foo.*", "bar.baz"]
 }'
 ```
 
+Find user:
+```
+$ curl admin:secret@localhost:8082/users/test
+```
+
 Delete user:
 ```
-curl -X DELETE admin:admin@localhost:8082/users/test
+$ curl -X DELETE admin:secret@localhost:8082/users/test
 ```
 
 Querying carbon:
 ```
-curl test:secret@localhost:8082/metrics/find?query=foo.*
+$ curl test:secret@localhost:8082/metrics/find?query=foo.*
 ```
