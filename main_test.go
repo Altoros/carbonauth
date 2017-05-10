@@ -10,6 +10,8 @@ import (
 	"github.com/Altoros/carbonauth/proxy"
 	"github.com/Altoros/carbonauth/user"
 	"github.com/labstack/echo"
+	"encoding/json"
+	"reflect"
 )
 
 func TestFlow(t *testing.T) {
@@ -40,9 +42,8 @@ func TestFlow(t *testing.T) {
 		w.Header().Add("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`[
-			{"target": "foo.*", "datapoints": [[1, 0]]},
-			{"target": "bar.baz.bam", "datapoints": [[0, 1]]
-		}]`))
+			{"target": "foo.*", "datapoints": [[1, 0]]}
+		]`))
 	})
 
 	b := httptest.NewServer(c)
@@ -67,18 +68,18 @@ func TestFlow(t *testing.T) {
 	}
 
 	for url, d := range map[string]struct {
-		fn     filterFunc
+		fn     func(p *proxy.Proxy) echo.HandlerFunc
 		want   string
 		method string
 	}{
 		"/metrics/find?query=foo.*": {
-			fn:     filterFind,
-			want:   `[{"id":"foo.bar.baz","isLeaf":1}]`,
+			fn:     findHandler,
+			want:   `[{"id": "foo.bar.baz","isLeaf": 1}]`,
 			method: http.MethodGet,
 		},
 		"/render?target=foo.*&format=json": {
-			fn:     filterRender,
-			want:   `[{"target":"foo.*","datapoints":[[1,0]]}]`,
+			fn:     renderHandler,
+			want:   `[{"target": "foo.*","datapoints": [[1, 0]]}]`,
 			method: http.MethodPost,
 		},
 	} {
@@ -87,14 +88,32 @@ func TestFlow(t *testing.T) {
 			r := httptest.NewRequest(d.method, url, nil)
 			r.SetBasicAuth("user", "secret")
 
-			h := authUser(db)(carbonHandler(p, d.fn))
+			h := authUser(db)(d.fn(p))
 			if err := h(e.NewContext(r, w)); err != nil {
 				t.Errorf("GET %s err = %v", url, err)
 			}
 
-			if w.Body.String() != d.want {
+			ok, err := jsonEqual(w.Body.Bytes(), []byte(d.want))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !ok {
 				t.Errorf("GET %s body = %q, want %q", url, w.Body.String(), d.want)
 			}
 		})
 	}
+}
+
+func jsonEqual(j1, j2 []byte) (bool, error) {
+	var v1 interface{}
+	var v2 interface{}
+
+	if err := json.Unmarshal(j1, &v1); err != nil {
+		return false, err
+	}
+	if err := json.Unmarshal(j2, &v2); err != nil {
+		return false, err
+	}
+	return reflect.DeepEqual(v1, v2), nil
 }

@@ -209,6 +209,7 @@ func findHandler(p *proxy.Proxy) echo.HandlerFunc {
 		if err != nil {
 			return err
 		}
+		defer res.Body.Close()
 
 		if res.StatusCode != http.StatusOK {
 			return c.Stream(res.StatusCode, res.Header.Get("Content-Type"), res.Body)
@@ -223,7 +224,7 @@ func findHandler(p *proxy.Proxy) echo.HandlerFunc {
 		if err != nil {
 			return err
 		}
-		return c.JSON(res.StatusCode, v)
+		return c.JSON(http.StatusOK, v)
 	}
 }
 
@@ -259,6 +260,8 @@ func renderHandler(p *proxy.Proxy) echo.HandlerFunc {
 		if err != nil {
 			return err
 		}
+		defer res.Body.Close()
+
 		return c.Stream(res.StatusCode, res.Header.Get("Content-Type"), res.Body)
 	}
 }
@@ -268,7 +271,6 @@ func proxyRequest(p *proxy.Proxy, c echo.Context) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
 
 	// copy response headers
 	for k, hh := range res.Header {

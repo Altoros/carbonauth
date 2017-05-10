@@ -135,7 +135,7 @@ func (p *Proxy) Proxy(r *http.Request) (*http.Response, error) {
 		res.Header.Del(k)
 	}
 
-	// decode gzip encoding
+	// TODO: res.Uncompressed
 	if res.Header.Get("Content-Encoding") == "gzip" {
 		res.Header.Del("Content-Encoding")
 		res.Header.Del("Content-Length")
