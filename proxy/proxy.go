@@ -67,6 +67,14 @@ func New(urls ...string) (*Proxy, error) {
 // ErrNoBackends is returned when all backends are currently suspended
 var ErrNoBackends = errors.New("no backend are availabe")
 
+type rc struct {
+	*strings.Reader
+}
+
+func (*rc) Close() error {
+	return nil
+}
+
 // ServeHTTP proxies http requests to one of backends using round-robin algorithm
 func (p *Proxy) Proxy(r *http.Request) (*http.Response, error) {
 	p.mu.RLock()
@@ -78,14 +86,16 @@ func (p *Proxy) Proxy(r *http.Request) (*http.Response, error) {
 	backend := p.backends[rand.Intn(len(p.backends))]
 	p.mu.RUnlock()
 
-	u := *r.URL // copy request url
-	u.Scheme = backend.Scheme
-	u.Host = backend.Host
-	u.Path = backend.Path + r.URL.Path
+	req := &http.Request{}
+	*req = *r // copy request
+	req.URL.Scheme = backend.Scheme
+	req.URL.Path = backend.Path + r.URL.Path
+	req.URL.Host = backend.Host
+	req.RequestURI = ""
 
-	req, err := http.NewRequest(r.Method, u.String(), r.Body)
-	if err != nil {
-		return nil, err
+	// ParseForm() drains Body
+	if r.PostForm != nil {
+		req.Body = &rc{strings.NewReader(r.PostForm.Encode())}
 	}
 
 	// copy headers

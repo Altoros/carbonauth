@@ -44,4 +44,5 @@ $ curl -X DELETE admin:secret@localhost:8082/users/test
 Querying carbon:
 ```
 $ curl test:secret@localhost:8082/metrics/find?query=foo.*
+$ curl test:secret@localhost:8082/render -d "target=foo.*&format=json"
 ```

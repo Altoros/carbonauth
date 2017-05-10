@@ -8,8 +8,11 @@ import (
 	"net/http"
 	"strings"
 
+	"errors"
+
 	"github.com/Altoros/carbonauth/proxy"
 	"github.com/Altoros/carbonauth/user"
+	"github.com/go-graphite/carbonapi/expr"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	glog "github.com/labstack/gommon/log"
@@ -78,8 +81,8 @@ func main() {
 
 	// proxy section
 	a := authUser(db)
-	e.GET("/metrics/find*", carbonHandler(p, filterFind), a)
-	e.POST("/render*", carbonHandler(p, filterRender), a)
+	e.GET("/metrics/find*", findHandler(p), a)
+	e.POST("/render*", renderHandler(p), a)
 
 	if conf.TLS.CertFile != "" && conf.TLS.KeyFile != "" {
 		panic(e.StartTLS(conf.Address, conf.TLS.CertFile, conf.TLS.KeyFile))
@@ -197,54 +200,14 @@ func filterFind(u *user.User, r *http.Response) ([]json.RawMessage, error) {
 	return result, nil
 }
 
-// response json format: [{"target": "...", ...}, ...]
-func filterRender(u *user.User, r *http.Response) ([]json.RawMessage, error) {
-	//_, e, err := expr.ParseExpr("zzzz")
-	//if err != nil {
-	//	return nil, err
-	//}
-
-	metrics := []json.RawMessage{}
-	if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
-		return nil, err
-	}
-
-	var m struct {
-		Target string `json:"target"`
-	}
-
-	result := make([]json.RawMessage, 0, len(metrics))
-	for _, metric := range metrics {
-		if err := json.Unmarshal(metric, &m); err != nil {
-			return nil, err
-		}
-
-		if !u.Can(m.Target) {
-			continue
-		}
-		result = append(result, metric)
-	}
-	return result, nil
-}
-
 const userKey = "user"
 
 // GET /metrics/find*
-// POST /render*
-func carbonHandler(p *proxy.Proxy, fn filterFunc) echo.HandlerFunc {
+func findHandler(p *proxy.Proxy) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		u := c.Get(userKey).(*user.User)
-		res, err := p.Proxy(c.Request())
+		res, err := proxyRequest(p, c)
 		if err != nil {
 			return err
-		}
-		defer res.Body.Close()
-
-		// copy response headers
-		for k, hh := range res.Header {
-			for _, h := range hh {
-				c.Response().Header().Add(k, h)
-			}
 		}
 
 		if res.StatusCode != http.StatusOK {
@@ -252,14 +215,66 @@ func carbonHandler(p *proxy.Proxy, fn filterFunc) echo.HandlerFunc {
 		}
 
 		if !strings.HasPrefix(res.Header.Get("Content-Type"), "application/json") {
-			return echo.ErrMethodNotAllowed
+			return errors.New("response Content-Type is not application/json")
 		}
 
-		// filter response when needed
-		v, err := fn(u, res)
+		u := c.Get(userKey).(*user.User)
+		v, err := filterFind(u, res)
 		if err != nil {
 			return err
 		}
 		return c.JSON(res.StatusCode, v)
 	}
+}
+
+// POST /render*
+func renderHandler(p *proxy.Proxy) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		u := c.Get(userKey).(*user.User)
+
+		vals, err := c.FormParams()
+		if err != nil {
+			return err
+		}
+
+		targets := vals["target"]
+		if targets == nil {
+			targets = vals["target[]"]
+		}
+
+		for _, t := range targets {
+			e, _, err := expr.ParseExpr(t)
+			if err != nil {
+				return err
+			}
+
+			for _, ee := range e.Metrics() {
+				if !u.Can(ee.Metric) {
+					return echo.ErrForbidden
+				}
+			}
+		}
+
+		res, err := proxyRequest(p, c)
+		if err != nil {
+			return err
+		}
+		return c.Stream(res.StatusCode, res.Header.Get("Content-Type"), res.Body)
+	}
+}
+
+func proxyRequest(p *proxy.Proxy, c echo.Context) (*http.Response, error) {
+	res, err := p.Proxy(c.Request())
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	// copy response headers
+	for k, hh := range res.Header {
+		for _, h := range hh {
+			c.Response().Header().Add(k, h)
+		}
+	}
+	return res, nil
 }
