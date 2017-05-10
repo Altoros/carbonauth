@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -95,17 +96,10 @@ func (p *Proxy) Proxy(r *http.Request) (*http.Response, error) {
 
 	// ParseForm() drains Body
 	if r.PostForm != nil {
-		req.Body = &rc{strings.NewReader(r.PostForm.Encode())}
-	}
-
-	// copy headers
-	for k, hh := range r.Header {
-		if hopHeaders[k] {
-			continue
-		}
-		for _, h := range hh {
-			req.Header.Add(k, h)
-		}
+		frm := r.PostForm.Encode()
+		req.Body = &rc{strings.NewReader(frm)}
+		req.Header.Set("Content-Length", strconv.Itoa(len(frm)))
+		req.ContentLength = int64(len(frm))
 	}
 
 	// we accept only gzip
