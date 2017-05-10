@@ -52,12 +52,24 @@
 
 
 [[dependencies]]
-  name = "github.com/cznic/internal"
-  revision = "e5e1c3e9165d0a72507c2bbb0ffac1c02b8d3f7c"
+  branch = "master"
+  name = "github.com/cznic/sqlite"
+
+[[dependencies]]
+  name = "github.com/go-sql-driver/mysql"
+  version = "^1.3.0"
+
+[[dependencies]]
+  name = "github.com/labstack/echo"
+  version = "^3.1.0"
+
+[[dependencies]]
+  name = "github.com/labstack/gommon"
+  version = ">=0.2.1, <1.0.0"
 
 [[dependencies]]
   branch = "master"
-  name = "github.com/cznic/sqlite"
+  name = "github.com/lib/pq"
 
 [[dependencies]]
   branch = "v2"

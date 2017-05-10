@@ -200,6 +200,9 @@ func (db *DB) FindByUsernameAndPassword(username, password string) (*User, error
 	}
 	defer rows.Close()
 
+	if !rows.Next() {
+		return nil, ErrNotFound
+	}
 	return scanUser(rows)
 }
 

@@ -199,6 +199,11 @@ func filterFind(u *user.User, r *http.Response) ([]json.RawMessage, error) {
 
 // response json format: [{"target": "...", ...}, ...]
 func filterRender(u *user.User, r *http.Response) ([]json.RawMessage, error) {
+	//_, e, err := expr.ParseExpr("zzzz")
+	//if err != nil {
+	//	return nil, err
+	//}
+
 	metrics := []json.RawMessage{}
 	if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
 		return nil, err

@@ -1,4 +1,4 @@
-memo = "61d33e6b141b9df779ddc2fd1ab4a817095b42d9274cf1b82df94fff83c8547f"
+memo = "5eadc50dc9e07b8f93c28218bb3178494eda9c61af682c032996b46514f5674d"
 
 [[projects]]
   branch = "master"
@@ -40,7 +40,7 @@ memo = "61d33e6b141b9df779ddc2fd1ab4a817095b42d9274cf1b82df94fff83c8547f"
   branch = "master"
   name = "github.com/cznic/sqlite"
   packages = [".","internal/bin"]
-  revision = "ced002fb38484376c1bc85a2cf1911e2a1aebaef"
+  revision = "37aeabae04ba101d231f266cf1457fb56f301718"
 
 [[projects]]
   branch = "master"
@@ -87,8 +87,8 @@ memo = "61d33e6b141b9df779ddc2fd1ab4a817095b42d9274cf1b82df94fff83c8547f"
 [[projects]]
   name = "github.com/labstack/gommon"
   packages = ["bytes","color","log","random"]
-  revision = "9cedb429ffbe71a32a3ae7c65fd109cb7ae07804"
-  version = "v0.2.0"
+  revision = "1121fd3e243c202482226a7afe4dcd07ffc4139a"
+  version = "v0.2.1"
 
 [[projects]]
   branch = "master"
@@ -124,7 +124,13 @@ memo = "61d33e6b141b9df779ddc2fd1ab4a817095b42d9274cf1b82df94fff83c8547f"
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["acme","acme/autocert"]
-  revision = "c7af5bf2638a1164f2eb5467c39c6cffbd13a02e"
+  revision = "122d919ec1efcfb58483215da23f815853e24b81"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/net"
+  packages = ["context"]
+  revision = "d212a1ef2de2f5d441c327b8f26cf3ea3ea9f265"
 
 [[projects]]
   branch = "master"
