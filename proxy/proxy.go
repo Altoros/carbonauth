@@ -1,9 +1,7 @@
 package proxy
 
 import (
-	"compress/gzip"
 	"errors"
-	"io"
 	"log"
 	"math/rand"
 	"net"
@@ -93,6 +91,7 @@ func (p *Proxy) Proxy(r *http.Request) (*http.Response, error) {
 	req.URL.Path = backend.Path + r.URL.Path
 	req.URL.Host = backend.Host
 	req.RequestURI = ""
+	req.Close = false
 
 	// ParseForm() drains Body
 	if r.PostForm != nil {
@@ -102,11 +101,9 @@ func (p *Proxy) Proxy(r *http.Request) (*http.Response, error) {
 		req.ContentLength = int64(len(frm))
 	}
 
-	// we accept only gzip
-	ae := req.Header.Get("Accept-Encoding")
-	if strings.Contains(ae, "gzip") {
-		req.Header.Set("Accept-Encoding", "gzip")
-	}
+	// http transport requests gzip encoding by
+	// default and decompresses the body by itself
+	req.Header.Del("Accept-Encoding")
 
 	if ip, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
 		if prior, ok := req.Header["X-Forwarded-For"]; ok {
@@ -128,30 +125,7 @@ func (p *Proxy) Proxy(r *http.Request) (*http.Response, error) {
 	for k, _ := range hopHeaders {
 		res.Header.Del(k)
 	}
-
-	// TODO: res.Uncompressed
-	if res.Header.Get("Content-Encoding") == "gzip" {
-		res.Header.Del("Content-Encoding")
-		res.Header.Del("Content-Length")
-
-		zr, err := gzip.NewReader(res.Body)
-		if err != nil {
-			return nil, err
-		}
-
-		res.Body = &gzr{zr, res.Body}
-	}
-
 	return res, nil
-}
-
-type gzr struct {
-	*gzip.Reader
-	io.Closer
-}
-
-func (gz *gzr) Close() error {
-	return gz.Closer.Close()
 }
 
 // suspend temporarily removes u from the backends list
