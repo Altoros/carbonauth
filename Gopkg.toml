@@ -21,3 +21,7 @@
 [[dependencies]]
   branch = "v2"
   name = "gopkg.in/yaml.v2"
+
+[[dependencies]]
+  branch = "master"
+  name = "github.com/go-graphite/carbonapi/expr"

@@ -1,0 +1,12 @@
+language: go
+dist: trusty
+
+before_install:
+  - sudo apt-get -qq update
+  - sudo apt-get install libcairo2-dev mercurial pkg-config -y
+
+go:
+  - 1.x
+  - 1.7.x
+  - 1.8.x
+  - master
