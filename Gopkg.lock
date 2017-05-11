@@ -1,10 +1,22 @@
-memo = "d9bb8b5b94df5a0c56e62a27d5064b667bc436920935479a57ab23f61807e8a1"
+memo = "40953baeac6e68517c641d72d3d4f331b4b6dd55610314fb04611b967134868a"
+
+[[projects]]
+  name = "bitbucket.org/tebeka/strftime"
+  packages = ["."]
+  revision = "af5e0ef38369dfb5819b56d27d593142841e4600"
+  version = "0.1.2"
 
 [[projects]]
   branch = "master"
-  name = "github.com/bradfitz/gomemcache"
-  packages = ["memcache"]
-  revision = "1952afaa557dc08e8e0d89eafab110fb501c1a2b"
+  name = "github.com/JaderDias/movingmedian"
+  packages = ["."]
+  revision = "12339a7f3e62ee09ab07cd1b26cd35b36f5efa56"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/aclements/go-moremath"
+  packages = ["mathx"]
+  revision = "033754ab1fee508c9f98f2785eec2365964e0b05"
 
 [[projects]]
   branch = "master"
@@ -74,9 +86,15 @@ memo = "d9bb8b5b94df5a0c56e62a27d5064b667bc436920935479a57ab23f61807e8a1"
 
 [[projects]]
   branch = "master"
-  name = "github.com/dgryski/go-expirecache"
+  name = "github.com/dgryski/go-onlinestats"
   packages = ["."]
-  revision = "743ef98b2adb7d72da5dff5df7d7a82f1a66c63e"
+  revision = "d946c32cf9106cf6c41a7a519cbf3a6601cc4188"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/dustin/go-humanize"
+  packages = ["."]
+  revision = "259d2a102b871d17f30e3cd9881a642961a1e486"
 
 [[projects]]
   branch = "master"
@@ -86,56 +104,20 @@ memo = "d9bb8b5b94df5a0c56e62a27d5064b667bc436920935479a57ab23f61807e8a1"
 
 [[projects]]
   branch = "master"
-  name = "github.com/facebookgo/atomicfile"
-  packages = ["."]
-  revision = "2de1f203e7d5e386a6833233882782932729f27e"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/facebookgo/clock"
-  packages = ["."]
-  revision = "600d898af40aa09a7a93ecb9265d87b0504b6f03"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/facebookgo/grace"
-  packages = ["gracehttp","gracenet"]
-  revision = "4afe952a37a495ae4ac0c1d4ce5f66e91058d149"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/facebookgo/httpdown"
-  packages = ["."]
-  revision = "a3b1354551a26449fbe05f5d855937f6e7acbd71"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/facebookgo/pidfile"
-  packages = ["."]
-  revision = "f242e2999868dcd267a2b86e49ce1f9cf9e15b16"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/facebookgo/stats"
-  packages = ["."]
-  revision = "1b76add642e42c6ffba7211ad7b3939ce654526e"
-
-[[projects]]
-  name = "github.com/go-graphite/carbonapi"
-  packages = ["util"]
-  revision = "c97ef18022696e8498a637f4e882fbff6a5da363"
-  version = "0.8.0"
+  name = "github.com/evmar/gocairo"
+  packages = ["cairo"]
+  revision = "ddd30f837497f6fcfe5e3c3665b97d7c17d381fe"
 
 [[projects]]
   branch = "master"
   name = "github.com/go-graphite/carbonapi/expr"
-  packages = ["."]
+  packages = ["expr"]
   revision = "aa9a8a654a2c8db6add1c18fb74b320a9cd18f73"
 
 [[projects]]
   branch = "refactor"
   name = "github.com/go-graphite/carbonzipper"
-  packages = ["cache","carbonzipperpb3","mstats"]
+  packages = ["carbonzipperpb3"]
   revision = "6896129010f8722703895e802755a6ef0fd76a07"
 
 [[projects]]
@@ -152,9 +134,39 @@ memo = "d9bb8b5b94df5a0c56e62a27d5064b667bc436920935479a57ab23f61807e8a1"
 
 [[projects]]
   branch = "master"
-  name = "github.com/gorilla/handlers"
+  name = "github.com/gonum/blas"
+  packages = [".","blas64","native","native/internal/math32"]
+  revision = "430a98d0f42f5d7b9a9535580771233386034848"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gonum/floats"
   packages = ["."]
-  revision = "13d73096a474cac93275c679c7b8a2dc17ddba82"
+  revision = "a2cbc5c70616cd18491ef2843231f6ce28b2cb02"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gonum/internal"
+  packages = ["asm/f32","asm/f64"]
+  revision = "abbe1115275b8ef5f1c4b73e2360c9e8177edcb2"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gonum/lapack"
+  packages = [".","lapack64","native"]
+  revision = "b2c45d0a904f3d18ef419fd1c65c22f3749046fe"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gonum/matrix"
+  packages = [".","mat64"]
+  revision = "496fef53954ba166f5dbc5bbbf90b433c130cfb1"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/kisielk/og-rek"
+  packages = ["."]
+  revision = "dd41cde712deb8c2105c111f1e549f1d93095127"
 
 [[projects]]
   name = "github.com/labstack/echo"
@@ -175,11 +187,6 @@ memo = "d9bb8b5b94df5a0c56e62a27d5064b667bc436920935479a57ab23f61807e8a1"
   revision = "2704adc878c21e1329f46f6e56a1c387d788ff94"
 
 [[projects]]
-  name = "github.com/lomik/zapwriter"
-  packages = ["."]
-  revision = "d4499a33b5929c4a2e7e169165f594f35b39638c"
-
-[[projects]]
   name = "github.com/mattn/go-colorable"
   packages = ["."]
   revision = "d228849504861217f796da67fae4f6e347643f15"
@@ -193,15 +200,9 @@ memo = "d9bb8b5b94df5a0c56e62a27d5064b667bc436920935479a57ab23f61807e8a1"
 
 [[projects]]
   branch = "master"
-  name = "github.com/peterbourgon/g2g"
-  packages = ["."]
-  revision = "0c2bab2b173d2cd9385ea6da5cec7b14b5019f11"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/satori/go.uuid"
-  packages = ["."]
-  revision = "5bf94b69c6b68ee1b541973bb8e1144db23a194b"
+  name = "github.com/mjibson/go-dsp"
+  packages = ["dsputils","fft"]
+  revision = "49dba83727078f13a0e99553e0f8140990115ac9"
 
 [[projects]]
   branch = "master"
@@ -216,16 +217,10 @@ memo = "d9bb8b5b94df5a0c56e62a27d5064b667bc436920935479a57ab23f61807e8a1"
   revision = "dcecefd839c4193db0d35b88ec65b4c12d360ab0"
 
 [[projects]]
-  name = "go.uber.org/atomic"
-  packages = ["."]
-  revision = "4e336646b2ef9fc6e47be8e21594178f98e5ebcf"
-  version = "v1.2.0"
-
-[[projects]]
   branch = "master"
-  name = "go.uber.org/zap"
-  packages = [".","buffer","internal/bufferpool","internal/color","internal/exit","internal/multierror","zapcore"]
-  revision = "cea6c27e79e5fd11f29021359e19bb5d02be1682"
+  name = "github.com/wangjohn/quickselect"
+  packages = ["."]
+  revision = "ed8402a42d5f52ff8d3369f179e12243906f298a"
 
 [[projects]]
   branch = "master"
