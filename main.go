@@ -11,7 +11,7 @@ import (
 
 	"github.com/Altoros/carbonauth/proxy"
 	"github.com/Altoros/carbonauth/user"
-	"github.com/go-graphite/carbonapi/expr"
+	"github.com/go-graphite/carbonapi/expr/expr"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	glog "github.com/labstack/gommon/log"
